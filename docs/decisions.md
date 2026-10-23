@@ -25,3 +25,48 @@ the current month has no history yet, so it is deleted instead of closed.
 need a validity filter, and replacing an item requires an explicit `flush()`: Hibernate executes
 inserts before updates and deletes, which would briefly create two active items and violate the
 partial unique index.
+## 3. Events between features, instead of calls in both directions
+
+**Context.** Archiving a category has to end the budget of that category: an archived category
+takes no new transactions, so an active limit would only leave a line stuck at zero in the
+budget and in the dashboard.
+
+**Decision.** `CategoryService` publishes `CategoryArchivedEvent` and the `budget` package
+listens to it. The listener is synchronous and runs inside the publisher's transaction.
+
+**Consequences.** The obvious alternative — `CategoryService` calling `BudgetService` — would
+create a cycle between the two packages, because `BudgetService` already depends on
+`CategoryService` to validate the category. With the event, `category` only announces a fact
+and whoever cares subscribes, which is the same shape already used by `UserRegisteredEvent`
+and the default categories.
+
+Being synchronous and in the same transaction is deliberate: if ending the budget fails, the
+archiving is not committed either. The cost is that `category` now owns an event that is part
+of its public contract, and a listener that throws takes the archiving down with it.
+
+## 4. Opaque refresh token in an `HttpOnly` cookie
+
+**Context.** The access token used to last an hour and lived in `sessionStorage`. Two problems:
+any XSS could read it, and after an hour the user was logged out in the middle of using the app.
+
+**Decision.** The session became two pieces. The access token is a 15-minute JWT, returned in
+the response body and kept only in the front-end's memory. The refresh token is a random
+256-bit value in an `HttpOnly` cookie scoped to `/auth`, stored in the database as a SHA-256
+hash and rotated on every use.
+
+**Consequences.** The token that matters is unreachable from JavaScript, and the front renews
+it on its own, so a long session no longer ends abruptly.
+
+The refresh token is not a JWT because it has to be revocable, and a self-contained JWT would
+only be revocable with a server-side list — which is exactly the table that now exists. Only
+the hash is stored, for the same reason the password is only stored hashed.
+
+Rotation makes a leaked copy detectable: if an already-used token shows up again, every session
+of that user is revoked. That revocation needs `noRollbackFor` on `rotate`, because the
+exception thrown right after it would otherwise roll back the very revocation that was just
+made.
+
+The cookie has to be `SameSite=None` in production, since the front and the API live on
+different domains, so the browser would also send it on a POST triggered by another site.
+`POST /auth/refresh` therefore requires the `X-Refresh-Request` header: a header outside the
+CORS safelist forces a preflight, and the preflight only passes for the origins the API allows.
