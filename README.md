@@ -1,5 +1,7 @@
 # Life and Money API
 
+[![CI](https://github.com/akiratochiro/life-and-money/actions/workflows/ci.yml/badge.svg)](https://github.com/akiratochiro/life-and-money/actions/workflows/ci.yml)
+
 A personal finance REST API built with Java and Spring Boot: custom categories, transactions,
 monthly budgets with effective dating, dashboards and savings goals.
 
@@ -40,8 +42,8 @@ The reasoning behind the main decisions is documented in [docs/decisions.md](doc
 Requirements: Docker.
 
 ```bash
-git clone https://github.com/akiratochiro/life-and-money-api.git
-cd life-and-money-api
+git clone https://github.com/akiratochiro/life-and-money.git
+cd life-and-money
 cp .env.example .env              # then set JWT_SECRET (see below)
 docker compose --profile app up --build
 ```
@@ -90,11 +92,14 @@ reads `JWT_SECRET` from `.env` and logs SQL statements.
 
 Unit tests cover domain rules (budget effective dating, goal progress, rounding), service tests use
 Mockito, and integration tests run against a real PostgreSQL container via Testcontainers
-(Docker must be running).
+(Docker must be running). The error contract is tested too: every rule that the user can break
+has an expected status and message.
+
+The same suite runs on GitHub Actions on every push and pull request
+([ci.yml](.github/workflows/ci.yml)).
 
 ## Roadmap
 
-- [ ] Web front-end (React / Next.js)
+- [x] Web front-end ([life-and-money-web](https://github.com/akiratochiro/life-and-money-web))
+- [x] Continuous integration with GitHub Actions
 - [ ] Withdrawals from savings goals
-- [ ] Refresh tokens
-- [ ] Continuous integration with GitHub Actions
