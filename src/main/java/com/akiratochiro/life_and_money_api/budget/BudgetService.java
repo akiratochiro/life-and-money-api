@@ -31,7 +31,7 @@ public class BudgetService {
     public BudgetItem setBudget(Long userId, Long categoryId, BudgetMode mode, BigDecimal limitValue) {
         Category category = categoryService.getActiveOwned(userId, categoryId);
         if (category.getType() == CategoryType.INCOME) {
-            throw new IncomeCategoryBudgetException(categoryId);
+            throw new IncomeCategoryBudgetException();
         }
 
         YearMonth currentMonth = YearMonth.now(clock);
@@ -47,7 +47,7 @@ public class BudgetService {
     public void removeFromBudget(Long userId, Long categoryId) {
         BudgetItem current = budgetItemRepository
                 .findByUserIdAndCategoryIdAndValidToIsNull(userId, categoryId)
-                .orElseThrow(() -> new BudgetItemNotFoundException(categoryId));
+                .orElseThrow(BudgetItemNotFoundException::new);
 
         endVigency(current, YearMonth.now(clock));
     }

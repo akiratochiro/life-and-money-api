@@ -24,7 +24,7 @@ public class UserService {
         String normalizedEmail = User.normalizeEmail(email);
 
         if (userRepository.existsByEmail(normalizedEmail)) {
-            throw new EmailAlreadyInUseException(normalizedEmail);
+            throw new EmailAlreadyInUseException();
         }
 
         String passwordHash = passwordEncoder.encode(rawPassword);
@@ -49,7 +49,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public User findById(Long id) {
         return userRepository.findById(id)
-                .orElseThrow(() -> new UserNotFoundException(id));
+                .orElseThrow(UserNotFoundException::new);
     }
 
 

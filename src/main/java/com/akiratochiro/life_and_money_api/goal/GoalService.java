@@ -69,12 +69,12 @@ public class GoalService {
 
     private void validateDeadline(LocalDate deadline) {
         if (!YearMonth.from(deadline).isAfter(YearMonth.now(clock))) {
-            throw new InvalidGoalDeadlineException(deadline);
+            throw new InvalidGoalDeadlineException();
         }
     }
 
     private SavingsGoal findOwned(Long userId, Long goalId) {
         return savingsGoalRepository.findByIdAndUserId(goalId, userId)
-                .orElseThrow(() -> new GoalNotFoundException(goalId));
+                .orElseThrow(GoalNotFoundException::new);
     }
 }

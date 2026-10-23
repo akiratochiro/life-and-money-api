@@ -60,14 +60,14 @@ public class CategoryService {
 
     private Category findOwned(Long userId, Long categoryId) {
         return categoryRepository.findByIdAndUserId(categoryId, userId)
-                .orElseThrow(() -> new CategoryNotFoundException(categoryId));
+                .orElseThrow(CategoryNotFoundException::new);
     }
 
     @Transactional(readOnly = true)
     public Category getActiveOwned(Long userId, Long categoryId) {
         Category category = findOwned(userId, categoryId);
         if (category.isArchived()) {
-            throw new CategoryArchivedException(categoryId);
+            throw new CategoryArchivedException();
         }
         return category;
     }

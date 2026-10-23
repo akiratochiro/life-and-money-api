@@ -55,16 +55,16 @@ public class TransactionService {
             return;
         }
         if (category.getType() != CategoryType.SAVING) {
-            throw new GoalRequiresSavingCategoryException(category.getId());
+            throw new GoalRequiresSavingCategoryException();
         }
         if (!goalOwnershipChecker.isOwnedBy(goalId, userId)) {
-            throw new GoalNotFoundException(goalId);
+            throw new GoalNotFoundException();
         }
     }
 
     private Transaction findOwned(Long userId, Long transactionId) {
         return transactionRepository.findByIdAndUserId(transactionId, userId)
-                .orElseThrow(() -> new TransactionNotFoundException(transactionId));
+                .orElseThrow(TransactionNotFoundException::new);
     }
 
 
