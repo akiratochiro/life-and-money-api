@@ -10,7 +10,8 @@ architecture, explicit design decisions and automated tests.
 
 ## Features
 
-- **Authentication** with JWT (stateless), BCrypt password hashing and per-user data isolation
+- **Authentication** with a short-lived JWT access token plus a rotating refresh token in an
+  `HttpOnly` cookie, BCrypt password hashing and per-user data isolation
 - **Categories** (income, expense, saving), archived instead of deleted to preserve history
 - **Transactions** with exact decimal arithmetic (`BigDecimal` / `NUMERIC`)
 - **Monthly budgets** by fixed amount or percentage of realized income, with **effective dating**:
@@ -18,6 +19,7 @@ architecture, explicit design decisions and automated tests.
 - **Dashboards**: expenses by category, monthly totals with averages over closed months only,
   and budget tracking with `OK` / `WARNING` / `EXCEEDED` status
 - **Savings goals** linked to saving transactions, with automatic monthly contribution calculation
+- **Archiving a category ends its budget**, through a domain event, so no dead line is left behind
 
 ## Tech stack
 
@@ -64,15 +66,20 @@ Interactive documentation (Swagger UI): `http://localhost:8080/swagger-ui/index.
 2. Copy the `accessToken`, click **Authorize** and paste it
 3. All protected endpoints can now be tried from the browser
 
+The access token lasts 15 minutes. When it expires, either log in again or call
+`POST /auth/refresh` with the header `X-Refresh-Request: 1` — the refresh token itself travels
+in an `HttpOnly` cookie that the browser sends on its own.
+
 | Area | Endpoints |
 |---|---|
-| Auth | `POST /auth/register` · `POST /auth/login` |
+| Auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` |
 | User | `GET /users/me` |
 | Categories | `POST /categories` · `GET /categories` · `PATCH /categories/{id}` · `POST /categories/{id}/archive` |
 | Transactions | `POST /transactions` · `GET /transactions?month=YYYY-MM` · `PUT /transactions/{id}` · `DELETE /transactions/{id}` |
 | Budgets | `GET /budgets?month=YYYY-MM` · `PUT /budgets/{categoryId}` · `DELETE /budgets/{categoryId}` |
 | Goals | `POST /goals` · `GET /goals` · `PUT /goals/{id}` · `DELETE /goals/{id}` |
 | Dashboard | `GET /dashboard/expenses-by-category?month=` · `GET /dashboard/monthly-totals?months=` · `GET /dashboard/budget?month=` |
+| Health | `GET /health` |
 
 ## Running locally for development
 
@@ -98,8 +105,17 @@ has an expected status and message.
 The same suite runs on GitHub Actions on every push and pull request
 ([ci.yml](.github/workflows/ci.yml)).
 
+## Deployment
+
+The API ships as a Docker image and is described by [`render.yaml`](render.yaml), so the deploy
+is reproducible instead of a sequence of clicks. Step by step, including which free tiers were
+chosen and why, in [docs/deploy.md](docs/deploy.md).
+
 ## Roadmap
 
 - [x] Web front-end ([life-and-money-web](https://github.com/akiratochiro/life-and-money-web))
 - [x] Continuous integration with GitHub Actions
+- [x] Refresh tokens in an `HttpOnly` cookie
 - [ ] Withdrawals from savings goals
+- [ ] Error responses documented in the OpenAPI spec, so the front can type `ProblemDetail`
+      from the generated schema instead of declaring it by hand

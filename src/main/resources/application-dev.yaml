@@ -5,6 +5,10 @@ logging:
 spring:
   config:
     import: optional:file:.env[.properties]
+  docker:
+    compose:
+      # No desenvolvimento o PostgreSQL do compose.yaml sobe junto com a aplicação.
+      enabled: true
 
 app:
   auth:

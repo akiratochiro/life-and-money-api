@@ -1,0 +1,28 @@
+# Blueprint do Render: descreve o serviço da API para que o deploy seja reproduzível em vez
+# de depender de cliques no painel.
+#
+# O banco não está aqui de propósito. O PostgreSQL gratuito do Render expira 30 dias depois
+# de criado, o que não serve para um link de portfólio que precisa continuar funcionando;
+# o banco fica no Neon, cujo plano gratuito é permanente. Ver docs/deploy.md.
+services:
+  - name: life-and-money-api
+    type: web
+    runtime: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      # Pedido na criação do blueprint. Gere com: openssl rand -base64 32
+      - key: JWT_SECRET
+        sync: false
+      # String de conexão do Neon, no formato jdbc:postgresql://...
+      - key: SPRING_DATASOURCE_URL
+        sync: false
+      - key: SPRING_DATASOURCE_USERNAME
+        sync: false
+      - key: SPRING_DATASOURCE_PASSWORD
+        sync: false
+      # URL do front publicado, sem barra no final.
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false

@@ -1,3 +1,7 @@
+server:
+  # Em produção o serviço de hospedagem escolhe a porta e a informa em PORT.
+  port: ${PORT:8080}
+
 spring:
   application:
     name: life-and-money-api
@@ -5,6 +9,11 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  docker:
+    compose:
+      # Fora do desenvolvimento não existe compose.yaml ao lado do jar; dizer isso
+      # explicitamente evita que a aplicação tente procurar um.
+      enabled: false
 
 jwt:
   secret: ${JWT_SECRET}
