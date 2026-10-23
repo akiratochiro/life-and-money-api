@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.web;
 
+import com.akiratochiro.life_and_money_api.auth.InvalidRefreshTokenException;
 import com.akiratochiro.life_and_money_api.budget.BudgetItemNotFoundException;
 import com.akiratochiro.life_and_money_api.budget.IncomeCategoryBudgetException;
 import com.akiratochiro.life_and_money_api.category.CategoryAlreadyExistsException;
@@ -58,6 +59,13 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
         problem.setTitle("Falha na autenticação");
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidRefreshTokenException.class)
+    public ProblemDetail handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        problem.setTitle("Sessão encerrada");
         return problem;
     }
 

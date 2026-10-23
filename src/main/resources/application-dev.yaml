@@ -5,3 +5,11 @@ logging:
 spring:
   config:
     import: optional:file:.env[.properties]
+
+app:
+  auth:
+    refresh-cookie:
+      # No localhost o front (5173) e a API (8080) são o mesmo site, então Lax basta — e em
+      # http o navegador recusaria um cookie Secure.
+      secure: false
+      same-site: Lax
