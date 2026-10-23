@@ -11,6 +11,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.http.MediaType;
+
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -30,7 +33,7 @@ class CategoryIsolationIntegrationTest {
         // given
         Long ana = register("ana@isolation.test");
         Long bruno = register("bruno@isolation.test");
-        Long anasCategory = createCategory(ana, "Mercado");
+        Long anasCategory = createCategory(ana, "Academia");
 
         // when / then: o Bruno tenta arquivar a categoria da Ana
         mockMvc.perform(post("/categories/{id}/archive", anasCategory).with(asUser(bruno)))
@@ -39,7 +42,7 @@ class CategoryIsolationIntegrationTest {
         // e não a vê na lista dele
         mockMvc.perform(get("/categories").with(asUser(bruno)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isEmpty());
+                .andExpect(jsonPath("$[*].id", not(hasItem(anasCategory.intValue()))));
     }
 
     private Long register(String email) throws Exception {
