@@ -1,22 +1,24 @@
 package com.akiratochiro.life_and_money_api.transaction;
 
-import com.akiratochiro.life_and_money_api.category.Category;
-import com.akiratochiro.life_and_money_api.category.CategoryResponse;
+import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 
+import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
+
 public record TransactionResponse(
-        Long id,
-        Long categoryId,
+        @Schema(requiredMode = REQUIRED) Long id,
+        @Schema(requiredMode = REQUIRED) Long categoryId,
         Long goalId,
-        BigDecimal amount,
-        LocalDate transactionDate,
+        @Schema(requiredMode = REQUIRED) BigDecimal amount,
+        @Schema(requiredMode = REQUIRED) LocalDate transactionDate,
         String description,
-        Instant createdAt,
-        Instant updatedAt
+        @Schema(requiredMode = REQUIRED) Instant createdAt,
+        @Schema(requiredMode = REQUIRED) Instant updatedAt
 ) {
+
     public static TransactionResponse from(Transaction transaction) {
         return new TransactionResponse(
                 transaction.getId(),
