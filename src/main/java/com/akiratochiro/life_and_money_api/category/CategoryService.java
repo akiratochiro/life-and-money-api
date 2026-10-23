@@ -1,17 +1,21 @@
 package com.akiratochiro.life_and_money_api.category;
 
-import java.util.Optional;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 
 @Service
 public class CategoryService {
 
     private final CategoryRepository categoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public CategoryService(CategoryRepository categoryRepository) {
+    public CategoryService(CategoryRepository categoryRepository,
+                           ApplicationEventPublisher eventPublisher) {
         this.categoryRepository = categoryRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -51,10 +55,19 @@ public class CategoryService {
     }
 
 
+    /**
+     * Arquiva a categoria e avisa quem depende disso. Arquivar de novo não muda nada e não
+     * republica o evento, para que a operação possa ser repetida sem efeito colateral.
+     */
     @Transactional
     public Category archive(Long userId, Long categoryId) {
         Category category = findOwned(userId, categoryId);
+        if (category.isArchived()) {
+            return category;
+        }
+
         category.archive();
+        eventPublisher.publishEvent(new CategoryArchivedEvent(userId, categoryId));
         return category;
     }
 

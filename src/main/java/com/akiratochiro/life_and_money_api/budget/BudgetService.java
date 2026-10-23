@@ -43,6 +43,7 @@ public class BudgetService {
                 new BudgetItem(userId, categoryId, mode, limitValue, currentMonth));
     }
 
+    /** Remoção pedida pelo usuário: se não havia orçamento, o pedido não faz sentido e falha. */
     @Transactional
     public void removeFromBudget(Long userId, Long categoryId) {
         BudgetItem current = budgetItemRepository
@@ -50,6 +51,17 @@ public class BudgetService {
                 .orElseThrow(BudgetItemNotFoundException::new);
 
         endVigency(current, YearMonth.now(clock));
+    }
+
+    /**
+     * Encerra o orçamento em vigor, se existir. Diferente do {@link #removeFromBudget}, aqui a
+     * ausência de orçamento é normal: quem chama reage a um fato (a categoria foi arquivada),
+     * não a um pedido de remoção.
+     */
+    @Transactional
+    public void endBudgetIfActive(Long userId, Long categoryId) {
+        budgetItemRepository.findByUserIdAndCategoryIdAndValidToIsNull(userId, categoryId)
+                .ifPresent(current -> endVigency(current, YearMonth.now(clock)));
     }
 
     private void endVigency(BudgetItem item, YearMonth currentMonth) {

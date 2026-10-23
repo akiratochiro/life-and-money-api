@@ -107,5 +107,49 @@ class BudgetServiceTest {
         verify(budgetItemRepository, never()).save(any());
     }
 
+    @Test
+    void endingTheBudgetOfACategoryWithoutOneDoesNothing() {
+        // given
+        when(budgetItemRepository.findByUserIdAndCategoryIdAndValidToIsNull(USER_ID, CATEGORY_ID))
+                .thenReturn(Optional.empty());
 
+        // when: é o que acontece ao arquivar uma categoria que nunca teve limite
+        budgetService.endBudgetIfActive(USER_ID, CATEGORY_ID);
+
+        // then: nada a encerrar, e nenhuma exceção
+        verify(budgetItemRepository, never()).delete(any());
+        verify(budgetItemRepository, never()).save(any());
+        verify(budgetItemRepository, never()).flush();
+    }
+
+    @Test
+    void endingABudgetWithHistoryClosesItAtTheEndOfLastMonth() {
+        // given
+        BudgetItem current = new BudgetItem(USER_ID, CATEGORY_ID, BudgetMode.AMOUNT,
+                new BigDecimal("1500.00"), YearMonth.of(2026, 6));
+        when(budgetItemRepository.findByUserIdAndCategoryIdAndValidToIsNull(USER_ID, CATEGORY_ID))
+                .thenReturn(Optional.of(current));
+
+        // when
+        budgetService.endBudgetIfActive(USER_ID, CATEGORY_ID);
+
+        // then: junho a agosto continuam valendo; de setembro em diante não há mais limite
+        assertThat(current.getValidTo()).isEqualTo(YearMonth.of(2026, 8));
+        verify(budgetItemRepository, never()).delete(any());
+    }
+
+    @Test
+    void endingABudgetCreatedThisMonthDeletesItBecauseThereIsNoHistoryToKeep() {
+        // given
+        BudgetItem current = new BudgetItem(USER_ID, CATEGORY_ID, BudgetMode.AMOUNT,
+                new BigDecimal("1500.00"), YearMonth.of(2026, 9));
+        when(budgetItemRepository.findByUserIdAndCategoryIdAndValidToIsNull(USER_ID, CATEGORY_ID))
+                .thenReturn(Optional.of(current));
+
+        // when
+        budgetService.endBudgetIfActive(USER_ID, CATEGORY_ID);
+
+        // then: fechar em agosto seria um período inválido, então o item é apagado
+        verify(budgetItemRepository).delete(current);
+    }
 }
