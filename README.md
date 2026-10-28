@@ -1,6 +1,6 @@
 # Life and Money API
 
-[![CI](https://github.com/akiratochiro/life-and-money/actions/workflows/ci.yml/badge.svg)](https://github.com/akiratochiro/life-and-money/actions/workflows/ci.yml)
+[![CI](https://github.com/akiratochiro/life-and-money-api/actions/workflows/ci.yml/badge.svg)](https://github.com/akiratochiro/life-and-money-api/actions/workflows/ci.yml)
 
 A personal finance REST API built with Java and Spring Boot: custom categories, transactions,
 monthly budgets with effective dating, dashboards and savings goals.
@@ -8,18 +8,32 @@ monthly budgets with effective dating, dashboards and savings goals.
 Built as a real tool for my own finances and as a portfolio project focused on clean
 architecture, explicit design decisions and automated tests.
 
+## Live demo
+
+- **App:** https://life-and-money-web.akira-tochiro23.workers.dev
+- **API docs (Swagger UI):** https://life-and-money-api.onrender.com/swagger-ui/index.html
+- **Web front-end repository:** [life-and-money-web](https://github.com/akiratochiro/life-and-money-web)
+
+> The API runs on a free instance that sleeps after 15 minutes of inactivity.
+> The first request after that can take up to a minute while it wakes up.
+
+Anyone can create an account: every query is scoped to the authenticated user, so each
+account only ever sees its own data.
+
 ## Features
 
 - **Authentication** with a short-lived JWT access token plus a rotating refresh token in an
   `HttpOnly` cookie, BCrypt password hashing and per-user data isolation
-- **Categories** (income, expense, saving), archived instead of deleted to preserve history
+- **Categories** (income, expense, saving), archived instead of deleted to preserve history,
+  with a default set created on registration
 - **Transactions** with exact decimal arithmetic (`BigDecimal` / `NUMERIC`)
 - **Monthly budgets** by fixed amount or percentage of realized income, with **effective dating**:
   changing a budget never rewrites past months
 - **Dashboards**: expenses by category, monthly totals with averages over closed months only,
-  and budget tracking with `OK` / `WARNING` / `EXCEEDED` status
+  and budget tracking with `OK` / `WARNING` / `EXCEEDED` for expenses and
+  `IN_PROGRESS` / `REACHED` for savings
 - **Savings goals** linked to saving transactions, with automatic monthly contribution calculation
-- **Archiving a category ends its budget**, through a domain event, so no dead line is left behind
+- **Archiving a category ends its budget** through a domain event, so no dead line is left behind
 
 ## Tech stack
 
@@ -35,6 +49,8 @@ JUnit 5 · Mockito · AssertJ · Testcontainers · Docker / Docker Compose · Ma
 - **Every query is scoped by the authenticated user**; resources from other users return `404`
 - **No circular dependencies** between packages, including a dependency inversion between
   transactions and savings goals
+- **Domain events** decouple features: registration creates default categories, archiving a
+  category ends its budget
 - Errors follow **RFC 9457** (`ProblemDetail`)
 
 The reasoning behind the main decisions is documented in [docs/decisions.md](docs/decisions.md).
@@ -44,8 +60,8 @@ The reasoning behind the main decisions is documented in [docs/decisions.md](doc
 Requirements: Docker.
 
 ```bash
-git clone https://github.com/akiratochiro/life-and-money.git
-cd life-and-money
+git clone https://github.com/akiratochiro/life-and-money-api.git
+cd life-and-money-api
 cp .env.example .env              # then set JWT_SECRET (see below)
 docker compose --profile app up --build
 ```
@@ -67,8 +83,8 @@ Interactive documentation (Swagger UI): `http://localhost:8080/swagger-ui/index.
 3. All protected endpoints can now be tried from the browser
 
 The access token lasts 15 minutes. When it expires, either log in again or call
-`POST /auth/refresh` with the header `X-Refresh-Request: 1` — the refresh token itself travels
-in an `HttpOnly` cookie that the browser sends on its own.
+`POST /auth/refresh` with the header `X-Refresh-Request: 1`. The refresh token itself
+travels in an `HttpOnly` cookie that the browser sends on its own.
 
 | Area | Endpoints |
 |---|---|
@@ -97,25 +113,27 @@ reads `JWT_SECRET` from `.env` and logs SQL statements.
 ./mvnw test
 ```
 
-Unit tests cover domain rules (budget effective dating, goal progress, rounding), service tests use
-Mockito, and integration tests run against a real PostgreSQL container via Testcontainers
+Unit tests cover domain rules (budget effective dating, goal progress, rounding), service tests
+use Mockito, and integration tests run against a real PostgreSQL container via Testcontainers
 (Docker must be running). The error contract is tested too: every rule that the user can break
 has an expected status and message.
 
-The same suite runs on GitHub Actions on every push and pull request
-([ci.yml](.github/workflows/ci.yml)).
+The same suite runs on GitHub Actions on every push and pull request ([ci.yml](.github/workflows/ci.yml)).
 
 ## Deployment
 
-The API ships as a Docker image and is described by [`render.yaml`](render.yaml), so the deploy
-is reproducible instead of a sequence of clicks. Step by step, including which free tiers were
-chosen and why, in [docs/deploy.md](docs/deploy.md).
+| Layer | Service |
+|---|---|
+| API | Render (Docker image built from this repository) |
+| Database | Neon (serverless PostgreSQL, direct connection over SSL) |
+| Front-end | Cloudflare Workers (static assets) |
+
+The API is described by [`render.yaml`](render.yaml), so the deploy is reproducible instead of a
+sequence of clicks. The full step by step, including which free tiers were chosen and why, is in
+[docs/deploy.md](docs/deploy.md).
 
 ## Roadmap
 
-- [x] Web front-end ([life-and-money-web](https://github.com/akiratochiro/life-and-money-web))
-- [x] Continuous integration with GitHub Actions
-- [x] Refresh tokens in an `HttpOnly` cookie
-- [ ] Withdrawals from savings goals
-- [ ] Error responses documented in the OpenAPI spec, so the front can type `ProblemDetail`
-      from the generated schema instead of declaring it by hand
+- Withdrawals from savings goals
+- Error responses documented in the OpenAPI spec, so the front-end can type `ProblemDetail`
+  from the generated schema instead of declaring it by hand
