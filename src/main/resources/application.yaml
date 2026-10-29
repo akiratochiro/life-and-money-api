@@ -1,6 +1,11 @@
 server:
   # Em produção o serviço de hospedagem escolhe a porta e a informa em PORT.
   port: ${PORT:8080}
+  servlet:
+    # Tudo sob /api. Em produção o Worker do front repassa /api/* para cá sem reescrever o
+    # caminho, e no desenvolvimento o proxy do Vite faz o mesmo: o caminho que o navegador vê é
+    # o caminho que a API conhece, inclusive o Path do cookie de refresh.
+    context-path: /api
 
 spring:
   application:

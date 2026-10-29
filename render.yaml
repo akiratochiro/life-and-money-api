@@ -11,7 +11,7 @@ services:
     plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     envVars:
       # Pedido na criação do blueprint. Gere com: openssl rand -base64 32
       - key: JWT_SECRET

@@ -45,7 +45,7 @@ class RefreshTokenIntegrationTest extends IntegrationTest {
                 .as("o JavaScript da página não pode ler este cookie")
                 .contains("HttpOnly")
                 .as("o cookie só viaja nas chamadas de autenticação")
-                .contains("Path=/auth");
+                .contains("Path=/api/auth");
     }
 
     @Test

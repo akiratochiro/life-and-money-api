@@ -13,8 +13,9 @@ import java.time.Duration;
  * <ul>
  *   <li><b>HttpOnly</b>: o JavaScript da página não lê o cookie, então um XSS não leva a sessão
  *       inteira embora — era o risco de guardar o token no sessionStorage;
- *   <li><b>Path=/auth</b>: o cookie só viaja nas chamadas de autenticação, e não em toda
- *       requisição da API;
+ *   <li><b>Path=/api/auth</b>: o cookie só viaja nas chamadas de autenticação, e não em toda
+ *       requisição da API. O prefixo vem do context-path, porque o Path é comparado com o
+ *       caminho que o navegador vê, e não com o mapeamento do controller;
  *   <li><b>Secure</b> e <b>SameSite</b>: vêm da configuração, porque dependem de onde o app está.
  *       Em produção o front e a API ficam em domínios diferentes, o que exige
  *       {@code SameSite=None}, e {@code None} só é aceito com {@code Secure}. No localhost, em
@@ -26,15 +27,16 @@ class RefreshTokenCookie {
 
     static final String NAME = "refreshToken";
 
-    private static final String PATH = "/auth";
-
+    private final String path;
     private final boolean secure;
     private final String sameSite;
     private final Duration lifetime;
 
-    RefreshTokenCookie(@Value("${app.auth.refresh-cookie.secure}") boolean secure,
+    RefreshTokenCookie(@Value("${server.servlet.context-path:}") String contextPath,
+                       @Value("${app.auth.refresh-cookie.secure}") boolean secure,
                        @Value("${app.auth.refresh-cookie.same-site}") String sameSite,
                        @Value("${jwt.refresh-expiration}") Duration lifetime) {
+        this.path = contextPath + "/auth";
         this.secure = secure;
         this.sameSite = sameSite;
         this.lifetime = lifetime;
@@ -54,6 +56,6 @@ class RefreshTokenCookie {
                 .httpOnly(true)
                 .secure(secure)
                 .sameSite(sameSite)
-                .path(PATH);
+                .path(path);
     }
 }
