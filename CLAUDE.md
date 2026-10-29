@@ -24,7 +24,9 @@ docker compose --profile app up --build   # API + Postgres em containers
 Para desenvolver, rode `LifeAndMoneyApiApplication` com `SPRING_PROFILES_ACTIVE=dev`: o Spring
 sobe o Postgres pelo Docker Compose e lê `JWT_SECRET` do `.env`.
 
-OpenAPI: `http://localhost:8080/v3/api-docs` · Swagger UI: `/swagger-ui/index.html`.
+Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
+`http://localhost:8080/api/v3/api-docs` · Swagger UI em `/api/swagger-ui/index.html` · health em
+`/api/health`. Os controllers e os testes com MockMvc usam os caminhos sem o prefixo.
 
 ## Arquitetura
 
@@ -49,8 +51,12 @@ OpenAPI: `http://localhost:8080/v3/api-docs` · Swagger UI: `/swagger-ui/index.h
 - **Orçamento com vigência:** mudar um orçamento fecha o item atual e abre outro; meses passados
   nunca são reescritos (decisão 2).
 - **Sessão:** access token JWT de 15 min no corpo da resposta; refresh token opaco em cookie
-  `HttpOnly` com path `/auth`, salvo como hash SHA-256 e rotacionado a cada uso.
-  `POST /auth/refresh` exige o header `X-Refresh-Request` (decisão 4).
+  `HttpOnly`, `SameSite=Strict`, com path `/api/auth`, salvo como hash SHA-256 e rotacionado a
+  cada uso. `POST /auth/refresh` exige o header `X-Refresh-Request`, segunda barreira contra
+  CSRF (decisões 4 e 5).
+- **Front e API na mesma origem, sem CORS.** O Worker do front faz proxy de `/api/*` para a API,
+  e o proxy do Vite faz o mesmo no dev (decisão 5). Não reintroduza CORS nem uma lista de
+  origens: as requisições do proxy chegam com o `Origin` do front, e uma lista as recusaria.
 
 ## Regras de trabalho
 
@@ -79,5 +85,5 @@ reconfira antes de depender deles.
   ~1 min). O Postgres gratuito do Render expira em 30 dias, por isso o banco fica no Neon.
 - **Neon:** plano gratuito permanente, 1 GB por projeto, 100 CU-hours de compute por projeto.
 - **Cloudflare Workers:** 100.000 requisições/dia (zera à meia-noite UTC) e 10 ms de CPU por
-  requisição, mas só para requisições que executam script. O front é só static assets, que são
-  gratuitos e ilimitados; os limites passam a contar se o front ganhar um script.
+  requisição, só para requisições que executam o script. Só `/api/*` executa (o proxy); os
+  estáticos são gratuitos e ilimitados. Esperar a API não conta como CPU.

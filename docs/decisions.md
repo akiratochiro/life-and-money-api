@@ -70,3 +70,36 @@ The cookie has to be `SameSite=None` in production, since the front and the API 
 different domains, so the browser would also send it on a POST triggered by another site.
 `POST /auth/refresh` therefore requires the `X-Refresh-Request` header: a header outside the
 CORS safelist forces a preflight, and the preflight only passes for the origins the API allows.
+
+*Update:* the cookie is now `SameSite=Strict` and the API no longer has CORS, because the front
+and the API moved to the same origin (decision 5). The `X-Refresh-Request` header stays as a
+second layer.
+
+## 5. Same origin for the front and the API
+
+**Context.** The front lives on `*.workers.dev` and the API on `*.onrender.com`. Both suffixes are
+on the Public Suffix List, so each subdomain is a separate site and the refresh cookie was a
+third-party cookie. Safari blocks third-party cookies by default, and on iOS every browser uses
+its engine: login worked, but the session was lost on every reload.
+
+**Decision.** The Worker that serves the front also proxies `/api/*` to the API, and the API is
+served under `/api` (`server.servlet.context-path`). In development, the Vite proxy plays the same
+role. The refresh cookie became `SameSite=Strict`, and CORS was removed.
+
+**Consequences.** For the browser there is a single origin: the cookie is first-party, the
+browser never sends it on a request started by another site, and no origin needs to be allowed.
+
+The prefix lives in the API, instead of the Worker stripping it, because a cookie's `Path` is
+matched against the path the browser sees. Had the Worker turned `/api/auth/refresh` into
+`/auth/refresh`, the API would issue `Path=/auth` and the browser would never send the cookie
+back, unless the Worker also rewrote `Set-Cookie`. With the prefix in the API, the path is the
+same through the proxy and when the API is called directly.
+
+Removing CORS was required, not only possible: the Worker forwards the browser's `Origin`, which
+is the front's domain, and the old allow-list rejected those requests with 403 whenever the
+origin did not match exactly. Without any CORS configuration the request goes through, and a
+preflight from another site gets no `Access-Control-Allow-Origin`.
+
+The cost is one more hop on every call, and each one counts against the Workers free plan
+(100,000 requests a day). Static files stay outside that count, since only `/api/*` runs the
+Worker script. Numbers are in [deploy.md](deploy.md).

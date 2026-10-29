@@ -10,7 +10,7 @@ Guia para colocar o Life and Money no ar: o front, a API e o PostgreSQL, com HTT
 
 | Parte | Serviço | Por quê |
 |---|---|---|
-| Front (SPA estática) | **Cloudflare Workers** (static assets) | Plano gratuito permanente, requisições a arquivos estáticos ilimitadas, sem hibernação, HTTPS e domínio próprio incluídos. Netlify e Vercel servem igual |
+| Front (SPA estática) e proxy de `/api` | **Cloudflare Workers** | Plano gratuito permanente, requisições a arquivos estáticos ilimitadas, sem hibernação, HTTPS e domínio próprio incluídos. O proxy deixa o front e a API na mesma origem |
 | API (Docker) | **Render** | 750 horas de instância por mês, deploy direto de um Dockerfile, HTTPS automático |
 | PostgreSQL | **Neon** | Plano gratuito **permanente**, 1 GB por projeto |
 
@@ -38,7 +38,18 @@ Duas saídas, nenhuma gratuita de graça:
 
 A escolha aqui foi a primeira: avisar.
 
-### Os limites do Workers, e por que eles quase não importam aqui
+### O detalhe que decide a origem
+
+O front fica em `*.workers.dev` e a API em `*.onrender.com`. Os dois sufixos estão na Public
+Suffix List, então cada subdomínio é um site diferente para o navegador, e o cookie de refresh da
+API seria de terceiros. O Safari bloqueia cookies de terceiros por padrão, e no iPhone todo
+navegador usa o motor dele: a sessão cairia a cada recarregamento.
+
+Por isso o Worker do front também faz proxy de `/api/*` para o Render, e a API responde sob
+`/api`. Para o navegador existe uma origem só: o cookie é primário, pode ser `SameSite=Strict`, e
+a API não precisa de CORS. A decisão está registrada em [decisions.md](decisions.md).
+
+### Os limites do Workers, e se eles comportam o proxy
 
 Plano gratuito do Workers, segundo a [página de limites](https://developers.cloudflare.com/workers/platform/limits/)
 consultada em **29/10/2026**:
@@ -49,15 +60,23 @@ consultada em **29/10/2026**:
 | Tempo de CPU | 10 ms por requisição HTTP |
 | Arquivos estáticos | 20.000 por versão, até 25 MiB cada |
 
-Os dois primeiros limites valem para requisições que **executam um script** do Worker. O front
-não tem script: o `wrangler.jsonc` só declara a pasta `dist` como assets, e a documentação de
-[static assets](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)
-diz que requisições a arquivos estáticos são gratuitas e ilimitadas. Isso inclui o `index.html`
-que o modo SPA devolve para rotas como `/goals`, porque sem script ele é servido pela própria
-camada de assets.
+Os dois primeiros limites valem só para requisições que **executam o script** do Worker, e o
+`run_worker_first: ["/api/*"]` faz com que só as chamadas à API o executem. Os arquivos estáticos,
+inclusive o `index.html` que o modo SPA devolve para rotas como `/goals`, saem da camada de assets,
+que a [documentação](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)
+diz ser gratuita e ilimitada.
 
-Se um dia o front ganhar um script (para SSR, por exemplo), as 100.000 requisições por dia passam
-a contar. Passado o limite, a Cloudflare responde com o erro 1027 até a meia-noite UTC.
+Para o proxy, a conta fecha com folga:
+
+- **Requisições:** abrir a home dispara umas 5 ou 6 chamadas à API, então 100.000 por dia são
+  cerca de 16 mil aberturas. O uso pessoal fica na casa das centenas;
+- **CPU:** repassar uma requisição gasta bem menos que 1 ms. Esperar a resposta do Render não
+  conta como CPU, e não há limite de duração para Workers HTTP, então o minuto de hibernação do
+  Render não derruba o proxy;
+- **Subrequests:** o limite é 50 por requisição, e o proxy faz 1.
+
+Passado o limite diário, só `/api/*` falha (com `429`) até a meia-noite UTC; o front continua
+carregando.
 
 ## Passo a passo
 
@@ -92,9 +111,8 @@ schema do zero na primeira subida.
 2. Em [render.com](https://render.com), crie um **Blueprint** apontando para este repositório.
    O [`render.yaml`](../render.yaml) já descreve o serviço, e o Render vai pedir o valor das
    variáveis marcadas com `sync: false`;
-3. Preencha `JWT_SECRET`, as três variáveis do banco e deixe `CORS_ALLOWED_ORIGINS` com um
-   valor provisório — a URL do front só existe no passo 3;
-4. Espere o build. O health check bate em `/health`, e o deploy só é considerado bom quando
+3. Preencha `JWT_SECRET` e as três variáveis do banco;
+4. Espere o build. O health check bate em `/api/health`, e o deploy só é considerado bom quando
    esse endpoint responde;
 5. Guarde a URL da API, algo como `https://life-and-money-api.onrender.com`.
 
@@ -111,19 +129,17 @@ no `wrangler.jsonc` do repositório.
    npx wrangler login
    ```
 
-2. Gere o build com a URL da API do passo 2, **sem barra no final**, e publique:
+2. Confira se `vars.API_ORIGIN` no `wrangler.jsonc` é a URL da API do passo 2, **sem barra no
+   final**. É para lá que o Worker repassa `/api/*`, e o valor é lido em tempo de execução:
+   trocar a API pede só um `wrangler deploy`, sem build novo;
+3. Gere o build e publique:
 
    ```bash
-   VITE_API_URL=https://life-and-money-api.onrender.com npm run build
+   npm run build
    npx wrangler deploy
    ```
 
-   O `VITE_API_URL` é lido no momento do build, não em tempo de execução: mudar a URL da API
-   exige um build e um deploy novos. A variável passada na linha de comando tem prioridade
-   sobre o `.env`, mas **esquecê-la não dá erro**: o build usa o `localhost:8080` do `.env`
-   local e publica um front que não acha a API;
-
-3. Guarde a URL que o `wrangler deploy` imprime, algo como
+4. Guarde a URL que o `wrangler deploy` imprime, algo como
    `https://life-and-money-web.<seu-subdominio>.workers.dev`.
 
 Abrir `/goals` direto no navegador funciona porque o `wrangler.jsonc` declara
@@ -133,12 +149,16 @@ isso, daria 404, porque o servidor não conhece as rotas do React Router.
 
 ### 4. Fechar o círculo
 
-1. No Render, troque `CORS_ALLOWED_ORIGINS` pela URL real do front e aguarde o redeploy;
-2. Abra o front, crie uma conta e lance uma transação.
+1. Abra o front, crie uma conta e lance uma transação;
+2. Recarregue a página: a sessão tem que continuar. É o teste de que o cookie de refresh está
+   chegando, e vale fazer também no Safari.
 
 `REFRESH_COOKIE_SECURE` e `REFRESH_COOKIE_SAME_SITE` não precisam ser definidas: o padrão da
-aplicação já é o de produção (`true` e `None`), que é o único par que o navegador aceita quando
-o front e a API estão em domínios diferentes.
+aplicação já é o de produção (`true` e `Strict`).
+
+Como o front novo chama `/api` e a API nova só responde sob `/api`, os dois sobem juntos: um front
+antigo não conversa com uma API nova, nem o contrário. Publique a API e, assim que o health check
+passar, o front.
 
 ## Variáveis de ambiente
 
@@ -148,27 +168,26 @@ o front e a API estão em domínios diferentes.
 | `SPRING_DATASOURCE_URL` | API | sim | — |
 | `SPRING_DATASOURCE_USERNAME` | API | sim | — |
 | `SPRING_DATASOURCE_PASSWORD` | API | sim | — |
-| `CORS_ALLOWED_ORIGINS` | API | sim em produção | `http://localhost:5173` |
 | `REFRESH_COOKIE_SECURE` | API | não | `true` |
-| `REFRESH_COOKIE_SAME_SITE` | API | não | `None` |
+| `REFRESH_COOKIE_SAME_SITE` | API | não | `Strict` |
 | `PORT` | API | não (o Render define) | `8080` |
-| `VITE_API_URL` | front, no build | sim | — |
+| `API_ORIGIN` | front, no `wrangler.jsonc` | sim | — |
 
 ## Se algo não funcionar
 
 | Sintoma | Causa provável |
 |---|---|
-| Login responde, mas toda requisição seguinte dá 401 | `CORS_ALLOWED_ORIGINS` não é exatamente a URL do front (barra no final, `http` em vez de `https`, ou domínio de preview em vez do de produção) |
-| Login funciona e a sessão cai ao recarregar | O cookie não está sendo aceito: confira que o front está em HTTPS e que `REFRESH_COOKIE_SECURE` e `REFRESH_COOKIE_SAME_SITE` não foram sobrescritas para `false`/`Lax` |
-| Erro de CORS no console do navegador | Mesma causa da primeira linha. Com `allowCredentials`, o navegador recusa `*` como origem: a lista precisa ser explícita |
+| Login funciona e a sessão cai ao recarregar | O cookie não está voltando: confira que o front chama a API por `/api` na própria origem, e não pela URL do Render, e que `REFRESH_COOKIE_SECURE` não foi sobrescrita para `false` |
+| Erro de CORS no console do navegador | Alguma chamada está indo direto para a URL do Render. A API não libera nenhuma origem: tudo passa pelo `/api` do front |
+| Toda chamada à API responde 404 ou 502 | `API_ORIGIN` no `wrangler.jsonc` errado, ou com barra no final |
 | A API não sobe, com erro do Flyway | Faltou `?sslmode=require` na URL, ou as credenciais do banco estão erradas |
 | Abrir `/goals` direto dá 404 | O `not_found_handling` saiu do `wrangler.jsonc`, ou o `assets.directory` não aponta para `dist` |
-| O front abre, mas toda chamada à API falha | O build foi feito sem `VITE_API_URL` e o bundle ficou com o `localhost:8080` do `.env` |
 | A primeira requisição demora um minuto | Instância gratuita hibernando. É o comportamento esperado |
 
 ## Documentação da API em produção
 
-O Swagger UI continua ligado em produção, em `/swagger-ui/index.html`. Para um projeto de
+O Swagger UI continua ligado em produção, em `/api/swagger-ui/index.html` (pela URL do Render ou
+pela do front, que repassa `/api/*`). Para um projeto de
 portfólio isso é desejável: quem recebe o link pode experimentar a API sem instalar nada.
 Num produto real, o caminho seria desligar com `springdoc.api-docs.enabled=false` ou deixar a
 documentação atrás de autenticação.
