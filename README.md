@@ -52,6 +52,9 @@ JUnit 5 · Mockito · AssertJ · Testcontainers · Docker / Docker Compose · Ma
 - **Domain events** decouple features: registration creates default categories, archiving a
   category ends its budget
 - Errors follow **RFC 9457** (`ProblemDetail`)
+- **Same origin as the front**: the API is served under `/api`, and the front's Cloudflare Worker
+  proxies `/api/*` to it, so the refresh cookie is first-party (`SameSite=Strict`) and no CORS is
+  needed
 
 The reasoning behind the main decisions is documented in [docs/decisions.md](docs/decisions.md).
 
@@ -72,11 +75,11 @@ Generate a secret for `JWT_SECRET` with:
 openssl rand -base64 32
 ```
 
-The API runs at `http://localhost:8080`.
+The API runs at `http://localhost:8080/api`.
 
 ## API documentation
 
-Interactive documentation (Swagger UI): `http://localhost:8080/swagger-ui/index.html`
+Interactive documentation (Swagger UI): `http://localhost:8080/api/swagger-ui/index.html`
 
 1. Call `POST /auth/register`, then `POST /auth/login`
 2. Copy the `accessToken`, click **Authorize** and paste it
@@ -85,6 +88,8 @@ Interactive documentation (Swagger UI): `http://localhost:8080/swagger-ui/index.
 The access token lasts 15 minutes. When it expires, either log in again or call
 `POST /auth/refresh` with the header `X-Refresh-Request: 1`. The refresh token itself
 travels in an `HttpOnly` cookie that the browser sends on its own.
+
+Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 
 | Area | Endpoints |
 |---|---|
