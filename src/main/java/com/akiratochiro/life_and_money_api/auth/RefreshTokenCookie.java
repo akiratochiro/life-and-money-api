@@ -16,10 +16,10 @@ import java.time.Duration;
  *   <li><b>Path=/api/auth</b>: o cookie só viaja nas chamadas de autenticação, e não em toda
  *       requisição da API. O prefixo vem do context-path, porque o Path é comparado com o
  *       caminho que o navegador vê, e não com o mapeamento do controller;
- *   <li><b>Secure</b> e <b>SameSite</b>: vêm da configuração, porque dependem de onde o app está.
- *       Em produção o front e a API ficam em domínios diferentes, o que exige
- *       {@code SameSite=None}, e {@code None} só é aceito com {@code Secure}. No localhost, em
- *       http, o par que funciona é {@code Lax} sem {@code Secure}.
+ *   <li><b>SameSite=Strict</b>: o front e a API estão na mesma origem, então o navegador só
+ *       precisa enviar o cookie em requisições que partem do próprio site. Um POST disparado
+ *       por outro site chega sem ele;
+ *   <li><b>Secure</b>: vem da configuração, porque o localhost roda em http.
  * </ul>
  */
 @Component

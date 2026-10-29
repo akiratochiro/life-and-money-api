@@ -35,7 +35,7 @@ class RefreshTokenIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    void theRefreshCookieIsHttpOnlyAndLimitedToTheAuthPath() throws Exception {
+    void theRefreshCookieIsHttpOnlyStrictAndLimitedToTheAuthPath() throws Exception {
         register("sessao.cookie@test.dev");
 
         String setCookie = login("sessao.cookie@test.dev").getResponse()
@@ -45,7 +45,10 @@ class RefreshTokenIntegrationTest extends IntegrationTest {
                 .as("o JavaScript da página não pode ler este cookie")
                 .contains("HttpOnly")
                 .as("o cookie só viaja nas chamadas de autenticação")
-                .contains("Path=/api/auth");
+                .contains("Path=/api/auth")
+                .as("o navegador não envia o cookie em requisições vindas de outro site")
+                .contains("SameSite=Strict")
+                .contains("Secure");
     }
 
     @Test

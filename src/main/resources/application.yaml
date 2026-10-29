@@ -32,9 +32,9 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   auth:
     refresh-cookie:
-      # O padrão é o de produção, onde o front e a API ficam em domínios diferentes: cookie
-      # cross-site exige SameSite=None, e None só é aceito com Secure. Assim, esquecer a
-      # variável de ambiente deixa o cookie mais restrito, não menos. O perfil dev afrouxa
-      # para o localhost em http.
+      # O front e a API ficam na mesma origem (o Worker do front faz proxy de /api/*), então
+      # o cookie pode ser Strict: o navegador não o envia em nenhuma requisição que parta de
+      # outro site, e isso fecha o CSRF na renovação. O padrão é o de produção, com Secure;
+      # o perfil dev só tira o Secure, porque o localhost roda em http.
       secure: ${REFRESH_COOKIE_SECURE:true}
-      same-site: ${REFRESH_COOKIE_SAME_SITE:None}
+      same-site: ${REFRESH_COOKIE_SAME_SITE:Strict}

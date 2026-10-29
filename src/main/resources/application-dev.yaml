@@ -13,7 +13,6 @@ spring:
 app:
   auth:
     refresh-cookie:
-      # No localhost o front (5173) e a API (8080) são o mesmo site, então Lax basta — e em
-      # http o navegador recusaria um cookie Secure.
+      # Em http o navegador recusaria um cookie Secure. O SameSite continua Strict, como em
+      # produção: o proxy do Vite deixa o front e a API na mesma origem também aqui.
       secure: false
-      same-site: Lax

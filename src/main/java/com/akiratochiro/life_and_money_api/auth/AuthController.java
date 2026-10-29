@@ -38,10 +38,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     /**
-     * Guarda contra CSRF. Em produção o cookie precisa ser {@code SameSite=None}, então o
-     * navegador o enviaria também num POST disparado por outro site. Exigir um header fora da
-     * lista segura do CORS obriga o navegador a fazer o preflight antes, e o preflight só passa
-     * para as origens que a API permite: a requisição forjada não chega aqui.
+     * Segunda barreira contra CSRF. A primeira é o {@code SameSite=Strict} do cookie, que o
+     * navegador já não envia num POST disparado por outro site. O header cobre navegadores que
+     * ignoram o SameSite: um header fora da lista segura do CORS obriga o preflight, e a API não
+     * libera nenhuma origem, então a requisição forjada não chega aqui.
      */
     private static final String REFRESH_REQUEST_HEADER = "X-Refresh-Request";
 
