@@ -39,7 +39,7 @@ account only ever sees its own data.
 
 Java 25 · Spring Boot 4.1 · Spring Security (OAuth2 Resource Server, JWT) · Spring Data JPA / Hibernate ·
 PostgreSQL 16 · Flyway · Bean Validation · springdoc-openapi ·
-JUnit 5 · Mockito · AssertJ · H2 (test fallback) · Maven
+JUnit 5 · Mockito · AssertJ · Testcontainers · Docker / Docker Compose · Maven
 
 ## Architecture highlights
 
@@ -104,7 +104,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 
 ## Running locally for development
 
-Requirements: JDK 25 and Docker for the local Postgres profile.
+Requirements: JDK 25 and Docker.
 
 1. Create the `.env` file as described above
 2. Run `LifeAndMoneyApiApplication` with the environment variable `SPRING_PROFILES_ACTIVE=dev`
@@ -118,10 +118,10 @@ reads `JWT_SECRET` from `.env` and logs SQL statements.
 ./mvnw test
 ```
 
-Unit tests cover domain rules (budget effective dating, goal progress, rounding), service tests use
-Mockito, and integration tests run against an H2 database in PostgreSQL compatibility mode so the
-suite stays portable without a Docker daemon. The error contract is tested too: every rule that the
-user can break has an expected status and message.
+Unit tests cover domain rules (budget effective dating, goal progress, rounding), service tests
+use Mockito, and integration tests run against a real PostgreSQL container via Testcontainers
+(Docker must be running). The error contract is tested too: every rule that the user can break
+has an expected status and message.
 
 The same suite runs on GitHub Actions on every push and pull request ([ci.yml](.github/workflows/ci.yml)).
 

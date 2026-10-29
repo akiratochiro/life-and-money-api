@@ -8,7 +8,7 @@ porquê das escolhas antes de mudar algo estrutural. O deploy está em [docs/dep
 
 ## Stack
 
-Java 21 · Spring Boot 4.1 · Spring Security (OAuth2 Resource Server, JWT) · Spring Data JPA /
+Java 25 · Spring Boot 4.1 · Spring Security (OAuth2 Resource Server, JWT) · Spring Data JPA /
 Hibernate · PostgreSQL 16 · Flyway · Bean Validation · springdoc-openapi · JUnit 5 · Mockito ·
 AssertJ · Testcontainers · Maven.
 
