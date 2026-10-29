@@ -72,9 +72,12 @@ OpenAPI: `http://localhost:8080/v3/api-docs` · Swagger UI: `/swagger-ui/index.h
 
 ## Limites dos planos gratuitos
 
-Conferidos em 23/10/2026 (ver [docs/deploy.md](docs/deploy.md)); reconfira antes de depender deles.
+Conferidos em 23/10/2026 (Render, Neon) e 29/10/2026 (Workers), ver [docs/deploy.md](docs/deploy.md);
+reconfira antes de depender deles.
 
 - **Render:** 750 h de instância/mês; hiberna após 15 min sem tráfego (primeira requisição leva
   ~1 min). O Postgres gratuito do Render expira em 30 dias, por isso o banco fica no Neon.
 - **Neon:** plano gratuito permanente, 1 GB por projeto, 100 CU-hours de compute por projeto.
-- **Cloudflare Workers:** confira o limite atual do plano gratuito antes de mudar o deploy do front.
+- **Cloudflare Workers:** 100.000 requisições/dia (zera à meia-noite UTC) e 10 ms de CPU por
+  requisição, mas só para requisições que executam script. O front é só static assets, que são
+  gratuitos e ilimitados; os limites passam a contar se o front ganhar um script.

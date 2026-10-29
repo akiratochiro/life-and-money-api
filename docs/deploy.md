@@ -3,14 +3,14 @@
 Guia para colocar o Life and Money no ar: o front, a API e o PostgreSQL, com HTTPS.
 
 > **Os planos gratuitos mudam.** As informações abaixo foram conferidas nas páginas oficiais
-> em **23/10/2026**. Antes de seguir, vale reconferir os limites de cada serviço, porque é
+> em **23/10/2026** (Render e Neon) e **29/10/2026** (Cloudflare Workers). Antes de seguir, vale reconferir os limites de cada serviço, porque é
 > exatamente esse tipo de informação que envelhece rápido.
 
 ## Onde cada parte vai
 
 | Parte | Serviço | Por quê |
 |---|---|---|
-| Front (SPA estática) | **Cloudflare Pages** | Plano gratuito permanente, 500 builds/mês, sem hibernação, HTTPS e domínio próprio incluídos. Netlify e Vercel servem igual |
+| Front (SPA estática) | **Cloudflare Workers** (static assets) | Plano gratuito permanente, requisições a arquivos estáticos ilimitadas, sem hibernação, HTTPS e domínio próprio incluídos. Netlify e Vercel servem igual |
 | API (Docker) | **Render** | 750 horas de instância por mês, deploy direto de um Dockerfile, HTTPS automático |
 | PostgreSQL | **Neon** | Plano gratuito **permanente**, 1 GB por projeto |
 
@@ -37,6 +37,27 @@ Duas saídas, nenhuma gratuita de graça:
   (100 CU-hours por projeto), então o ping gasta os dois.
 
 A escolha aqui foi a primeira: avisar.
+
+### Os limites do Workers, e por que eles quase não importam aqui
+
+Plano gratuito do Workers, segundo a [página de limites](https://developers.cloudflare.com/workers/platform/limits/)
+consultada em **29/10/2026**:
+
+| Limite | Plano gratuito |
+|---|---|
+| Requisições | 100.000 por dia, zerando à meia-noite UTC |
+| Tempo de CPU | 10 ms por requisição HTTP |
+| Arquivos estáticos | 20.000 por versão, até 25 MiB cada |
+
+Os dois primeiros limites valem para requisições que **executam um script** do Worker. O front
+não tem script: o `wrangler.jsonc` só declara a pasta `dist` como assets, e a documentação de
+[static assets](https://developers.cloudflare.com/workers/static-assets/billing-and-limitations/)
+diz que requisições a arquivos estáticos são gratuitas e ilimitadas. Isso inclui o `index.html`
+que o modo SPA devolve para rotas como `/goals`, porque sem script ele é servido pela própria
+camada de assets.
+
+Se um dia o front ganhar um script (para SSR, por exemplo), as 100.000 requisições por dia passam
+a contar. Passado o limite, a Cloudflare responde com o erro 1027 até a meia-noite UTC.
 
 ## Passo a passo
 
@@ -77,26 +98,38 @@ schema do zero na primeira subida.
    esse endpoint responde;
 5. Guarde a URL da API, algo como `https://life-and-money-api.onrender.com`.
 
-### 3. Front no Cloudflare Pages
+### 3. Front no Cloudflare Workers
 
-1. Em [dash.cloudflare.com](https://dash.cloudflare.com) → Workers & Pages → Pages, conecte o
-   repositório [life-and-money-web](https://github.com/akiratochiro/life-and-money-web);
-2. Configuração do build:
+O front é publicado com o `wrangler`, que já é dependência de desenvolvimento do
+[life-and-money-web](https://github.com/akiratochiro/life-and-money-web). A configuração está
+no `wrangler.jsonc` do repositório.
 
-   | Campo | Valor |
-   |---|---|
-   | Framework preset | None |
-   | Build command | `npm run build` |
-   | Build output directory | `dist` |
+1. Crie uma conta gratuita em [dash.cloudflare.com](https://dash.cloudflare.com) e, dentro do
+   repositório do front, autentique o `wrangler` (abre o navegador):
 
-3. Variável de ambiente do build: `VITE_API_URL` com a URL da API do passo 2, **sem barra no
-   final**. Ela é lida no momento do build, não em tempo de execução: mudar essa variável exige
-   um novo build;
-4. Publique e guarde a URL, algo como `https://life-and-money-web.pages.dev`.
+   ```bash
+   npx wrangler login
+   ```
 
-O arquivo `public/_redirects` do front já manda qualquer rota para o `index.html`. Sem isso,
-abrir `/goals` direto no navegador daria 404: o roteamento é do React Router, e o servidor não
-conhece essas rotas.
+2. Gere o build com a URL da API do passo 2, **sem barra no final**, e publique:
+
+   ```bash
+   VITE_API_URL=https://life-and-money-api.onrender.com npm run build
+   npx wrangler deploy
+   ```
+
+   O `VITE_API_URL` é lido no momento do build, não em tempo de execução: mudar a URL da API
+   exige um build e um deploy novos. A variável passada na linha de comando tem prioridade
+   sobre o `.env`, mas **esquecê-la não dá erro**: o build usa o `localhost:8080` do `.env`
+   local e publica um front que não acha a API;
+
+3. Guarde a URL que o `wrangler deploy` imprime, algo como
+   `https://life-and-money-web.<seu-subdominio>.workers.dev`.
+
+Abrir `/goals` direto no navegador funciona porque o `wrangler.jsonc` declara
+`"not_found_handling": "single-page-application"`: qualquer caminho que não seja um arquivo do
+`dist` recebe o `index.html` com status 200, e o React Router resolve a rota no navegador. Sem
+isso, daria 404, porque o servidor não conhece as rotas do React Router.
 
 ### 4. Fechar o círculo
 
@@ -129,7 +162,8 @@ o front e a API estão em domínios diferentes.
 | Login funciona e a sessão cai ao recarregar | O cookie não está sendo aceito: confira que o front está em HTTPS e que `REFRESH_COOKIE_SECURE` e `REFRESH_COOKIE_SAME_SITE` não foram sobrescritas para `false`/`Lax` |
 | Erro de CORS no console do navegador | Mesma causa da primeira linha. Com `allowCredentials`, o navegador recusa `*` como origem: a lista precisa ser explícita |
 | A API não sobe, com erro do Flyway | Faltou `?sslmode=require` na URL, ou as credenciais do banco estão erradas |
-| Abrir `/goals` direto dá 404 | O `_redirects` não subiu, ou a pasta de saída do build não é `dist` |
+| Abrir `/goals` direto dá 404 | O `not_found_handling` saiu do `wrangler.jsonc`, ou o `assets.directory` não aponta para `dist` |
+| O front abre, mas toda chamada à API falha | O build foi feito sem `VITE_API_URL` e o bundle ficou com o `localhost:8080` do `.env` |
 | A primeira requisição demora um minuto | Instância gratuita hibernando. É o comportamento esperado |
 
 ## Documentação da API em produção
