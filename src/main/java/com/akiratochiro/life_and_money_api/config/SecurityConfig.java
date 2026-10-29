@@ -1,5 +1,4 @@
 package com.akiratochiro.life_and_money_api.config;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.Customizer;
@@ -8,11 +7,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.factory.PasswordEncoderFactories;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.List;
 
 @Configuration
 public class SecurityConfig {
@@ -24,7 +18,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(Customizer.withDefaults())
+                // O front e a API estão na mesma origem (o Worker do front faz proxy de /api/*),
+                // então nenhuma origem precisa ser liberada. Sem CORS, um site de outra origem
+                // não consegue ler nenhuma resposta da API pelo navegador.
+                .cors(cors -> cors.disable())
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -34,22 +31,5 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(Customizer.withDefaults()));
         return http.build();
-    }
-
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource(
-            @Value("${app.cors.allowed-origins}") List<String> allowedOrigins) {
-        CorsConfiguration config = new CorsConfiguration();
-        // Origens sempre explícitas: com allowCredentials, o navegador recusa o curinga "*".
-        config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "X-Refresh-Request"));
-        // Necessário para o cookie do refresh token viajar nas chamadas de /auth.
-        config.setAllowCredentials(true);
-        config.setMaxAge(3600L);
-
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", config);
-        return source;
     }
 }
