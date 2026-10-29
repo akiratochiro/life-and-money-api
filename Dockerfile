@@ -1,5 +1,5 @@
 # Etapa 1: compilar
-FROM eclipse-temurin:21-jdk AS build
+FROM eclipse-temurin:25-jdk AS build
 WORKDIR /app
 
 # O pom e o wrapper vêm antes do código: enquanto as dependências não mudam, esta camada
@@ -14,7 +14,7 @@ RUN ./mvnw package -DskipTests -B
 
 # Etapa 2: rodar
 # Só o JRE e o jar: a imagem final não carrega o JDK nem o repositório do Maven.
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:25-jre
 WORKDIR /app
 
 RUN groupadd --system app && useradd --system --gid app app
