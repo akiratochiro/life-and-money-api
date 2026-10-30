@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api;
 
 import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
@@ -25,11 +26,24 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.front-url=http://localhost:5173"
 })
 @AutoConfigureMockMvc
-@Import(TestcontainersConfiguration.class)
+@Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})
 public abstract class IntegrationTest {
 
     @Autowired
     protected MockMvc mockMvc;
+
+    @Autowired
+    protected MutableClock clock;
+
+    @Autowired
+    protected RecordingEmailSender emails;
+
+    /** O contexto é compartilhado entre as classes: o que um teste mexeu não vaza para o próximo. */
+    @AfterEach
+    void resetTestDoubles() {
+        clock.reset();
+        emails.clear();
+    }
 
     /** Cadastra um usuário e devolve o id dele. */
     protected Long register(String email) throws Exception {

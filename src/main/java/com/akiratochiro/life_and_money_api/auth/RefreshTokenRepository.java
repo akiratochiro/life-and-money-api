@@ -12,7 +12,12 @@ interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
     Optional<RefreshToken> findByTokenHash(String tokenHash);
 
-    @Modifying(clearAutomatically = true)
+    /**
+     * O {@code flushAutomatically} não é opcional: o {@code clearAutomatically} limpa o contexto de
+     * persistência depois do update, e qualquer alteração ainda não gravada na mesma transação —
+     * como a senha nova, na redefinição — seria descartada sem erro nenhum.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("""
             update RefreshToken t
                set t.revokedAt = :moment

@@ -6,15 +6,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 
 /**
  * Emite, rotaciona e revoga os refresh tokens.
@@ -31,12 +25,10 @@ import java.util.HexFormat;
 class RefreshTokenService {
 
     private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
-    private static final int TOKEN_BYTES = 32;
 
     private final RefreshTokenRepository refreshTokenRepository;
     private final Clock clock;
     private final Duration lifetime;
-    private final SecureRandom random = new SecureRandom();
 
     RefreshTokenService(RefreshTokenRepository refreshTokenRepository,
                         Clock clock,
@@ -53,12 +45,10 @@ class RefreshTokenService {
     /** Emite um token novo para o usuário e devolve o valor em claro, que só o navegador verá. */
     @Transactional
     String issue(Long userId) {
-        byte[] bytes = new byte[TOKEN_BYTES];
-        random.nextBytes(bytes);
-        String value = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String value = OpaqueTokens.generate();
 
         Instant now = clock.instant();
-        refreshTokenRepository.save(new RefreshToken(userId, hash(value), now, now.plus(lifetime)));
+        refreshTokenRepository.save(new RefreshToken(userId, OpaqueTokens.hash(value), now, now.plus(lifetime)));
         return value;
     }
 
@@ -79,7 +69,7 @@ class RefreshTokenService {
             throw new InvalidRefreshTokenException();
         }
 
-        RefreshToken stored = refreshTokenRepository.findByTokenHash(hash(presentedValue))
+        RefreshToken stored = refreshTokenRepository.findByTokenHash(OpaqueTokens.hash(presentedValue))
                 .orElseThrow(InvalidRefreshTokenException::new);
 
         Instant now = clock.instant();
@@ -108,18 +98,14 @@ class RefreshTokenService {
         if (presentedValue == null || presentedValue.isBlank()) {
             return;
         }
-        refreshTokenRepository.findByTokenHash(hash(presentedValue))
+        refreshTokenRepository.findByTokenHash(OpaqueTokens.hash(presentedValue))
                 .ifPresent(stored -> stored.revoke(clock.instant()));
     }
 
-    private static String hash(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            // SHA-256 é obrigatório em qualquer JVM; se faltar, não há como seguir.
-            throw new IllegalStateException("SHA-256 indisponível nesta JVM", e);
-        }
+    /** Encerra todas as sessões do usuário, como depois de uma troca de senha. */
+    @Transactional
+    void revokeAllOf(Long userId) {
+        refreshTokenRepository.revokeAllOfUser(userId, clock.instant());
     }
 
     record Rotation(Long userId, String nextToken) {

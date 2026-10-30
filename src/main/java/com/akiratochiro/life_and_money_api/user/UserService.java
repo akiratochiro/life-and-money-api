@@ -5,6 +5,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.util.Optional;
+
 @Service
 public class UserService {
    private final UserRepository userRepository;
@@ -50,6 +52,22 @@ public class UserService {
     public User findById(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(UserNotFoundException::new);
+    }
+
+    /**
+     * Busca sem lançar exceção quando não acha: quem pede a redefinição de senha precisa tratar
+     * "não existe" exatamente como "existe", sem que isso vire uma resposta diferente.
+     */
+    @Transactional(readOnly = true)
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(User.normalizeEmail(email));
+    }
+
+    @Transactional
+    public void changePassword(Long userId, String rawPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+        user.changePasswordHash(passwordEncoder.encode(rawPassword));
     }
 
 

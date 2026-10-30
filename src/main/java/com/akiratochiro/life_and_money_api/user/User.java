@@ -47,6 +47,11 @@ public class User{
         return createdAt;
     }
 
+    /** Recebe o hash, nunca a senha: quem calcula o BCrypt é o UserService. */
+    void changePasswordHash(String newPasswordHash) {
+        this.passwordHash = Objects.requireNonNull(newPasswordHash, "passwordHash is required");
+    }
+
     public void changeEmail(String newEmail){
         this.email = normalizeEmail(newEmail);
     }

@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.web;
 
+import com.akiratochiro.life_and_money_api.auth.InvalidPasswordResetTokenException;
 import com.akiratochiro.life_and_money_api.auth.InvalidRefreshTokenException;
 import com.akiratochiro.life_and_money_api.budget.BudgetItemNotFoundException;
 import com.akiratochiro.life_and_money_api.budget.IncomeCategoryBudgetException;
@@ -51,6 +52,11 @@ public class GlobalExceptionHandler {
         problem.setProperty("errors", errors);
 
         return problem;
+    }
+
+    @ExceptionHandler(InvalidPasswordResetTokenException.class)
+    public ProblemDetail handleInvalidPasswordResetToken(InvalidPasswordResetTokenException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Link inválido", ex);
     }
 
     // 401

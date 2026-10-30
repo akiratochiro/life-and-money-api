@@ -51,15 +51,18 @@ public class AuthController {
     private final TokenService tokenService;
     private final RefreshTokenService refreshTokenService;
     private final RefreshTokenCookie refreshTokenCookie;
+    private final PasswordResetService passwordResetService;
 
     public AuthController(UserService userService,
                           TokenService tokenService,
                           RefreshTokenService refreshTokenService,
-                          RefreshTokenCookie refreshTokenCookie) {
+                          RefreshTokenCookie refreshTokenCookie,
+                          PasswordResetService passwordResetService) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.refreshTokenCookie = refreshTokenCookie;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/register")
@@ -107,6 +110,26 @@ public class AuthController {
 
         refreshTokenService.revoke(refreshToken);
         response.addHeader(HttpHeaders.SET_COOKIE, refreshTokenCookie.expired().toString());
+    }
+
+    @PostMapping("/forgot-password")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Pede um link para criar uma senha nova",
+            description = "Responde sempre 202 com a mesma mensagem, exista ou não uma conta com o "
+                    + "e-mail: a resposta não pode servir para descobrir quem tem cadastro. "
+                    + "Quando a conta existe, o link sai por e-mail e vale por 30 minutos.")
+    public ForgotPasswordResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+        return ForgotPasswordResponse.INSTANCE;
+    }
+
+    @PostMapping("/reset-password")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Cria uma senha nova com o token do e-mail",
+            description = "O token vale uma vez só. A senha segue as regras do cadastro, e todas as "
+                    + "sessões do usuário são encerradas: depois disso é preciso entrar de novo.")
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.token(), request.newPassword());
     }
 
     private void issueRefreshCookie(HttpServletResponse response, String value) {
