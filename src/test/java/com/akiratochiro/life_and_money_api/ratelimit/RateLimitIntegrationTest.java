@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 
 import java.time.Duration;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -134,6 +135,23 @@ class RateLimitIntegrationTest extends IntegrationTest {
         }
 
         mockMvc.perform(fromCloudflare("203.0.113.100", post("/auth/refresh")).header("X-Refresh-Request", "1"))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void passwordAttemptsToDeleteTheAccountAreLimitedPerUser() throws Exception {
+        Long userId = register("limite.exclusao@test.dev");
+
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            mockMvc.perform(delete("/users/me").with(asUser(userId))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"password\": \"chute" + attempt + "\"}"))
+                    .andExpect(status().isForbidden());
+        }
+
+        mockMvc.perform(delete("/users/me").with(asUser(userId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"password\": \"senha12345\"}"))
                 .andExpect(status().isTooManyRequests());
     }
 

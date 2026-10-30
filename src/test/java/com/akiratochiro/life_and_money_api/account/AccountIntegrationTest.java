@@ -17,13 +17,14 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-class AccountDeletionIntegrationTest extends IntegrationTest {
+class AccountIntegrationTest extends IntegrationTest {
 
     private static final String PASSWORD = "senha12345";
 
@@ -81,6 +82,31 @@ class AccountDeletionIntegrationTest extends IntegrationTest {
         deleteAccount(ana, "")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.password").value("Informe sua senha."));
+    }
+
+    @Test
+    void theExportBringsEverythingOfTheUserAndNothingOfAnyoneElse() throws Exception {
+        Long ana = registerWithData("export.ana@test.dev");
+        Long bia = registerWithData("export.bia@test.dev");
+
+        MvcResult result = mockMvc.perform(get("/users/me/export").with(asUser(ana)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
+                        org.hamcrest.Matchers.matchesPattern("attachment; filename=\"life-and-money-\\d{4}-\\d{2}-\\d{2}\\.json\"")))
+                .andExpect(jsonPath("$.profile.email").value("export.ana@test.dev"))
+                .andExpect(jsonPath("$.transactions.length()").value(2))
+                .andExpect(jsonPath("$.budgetItems.length()").value(1))
+                .andExpect(jsonPath("$.goals.length()").value(1))
+                .andExpect(jsonPath("$.goals[0].saved").value(300.00))
+                .andReturn();
+
+        String body = result.getResponse().getContentAsString();
+        assertThat(body)
+                .contains("Mercado " + ana, "Reserva " + ana)
+                .doesNotContain("export.bia@test.dev", "Mercado " + bia, "Reserva " + bia)
+                .as("credenciais não são dados da pessoa")
+                .doesNotContainIgnoringCase("passwordHash")
+                .doesNotContainIgnoringCase("tokenHash");
     }
 
     /** Linhas do usuário em cada tabela com user_id, mais a dele em users. */

@@ -13,6 +13,8 @@ import java.util.Optional;
 public interface TransactionRepository extends JpaRepository<Transaction, Long>{
     Optional<Transaction> findByIdAndUserId(Long id, Long userId);
 
+    List<Transaction> findAllByUserIdOrderByTransactionDateAscIdAsc(Long userId);
+
     List<Transaction> findAllByUserIdAndTransactionDateBetweenOrderByTransactionDateDescIdDesc(
             Long userId, LocalDate start, LocalDate end);
     @Query("""

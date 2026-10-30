@@ -13,6 +13,8 @@ interface BudgetItemRepository extends JpaRepository<BudgetItem, Long> {
 
     Optional<BudgetItem> findByUserIdAndCategoryIdAndValidToIsNull(Long userId, Long categoryId);
 
+    List<BudgetItem> findAllByUserIdOrderByValidFromAscIdAsc(Long userId);
+
     @Query("""
             select b from BudgetItem b
             where b.userId = :userId

@@ -1,15 +1,21 @@
 package com.akiratochiro.life_and_money_api.account;
 
 import com.akiratochiro.life_and_money_api.auth.AccountCredentials;
+import com.akiratochiro.life_and_money_api.budget.BudgetItemResponse;
 import com.akiratochiro.life_and_money_api.budget.BudgetService;
+import com.akiratochiro.life_and_money_api.category.CategoryResponse;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
 import com.akiratochiro.life_and_money_api.goal.GoalService;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimit;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimiter;
+import com.akiratochiro.life_and_money_api.transaction.TransactionResponse;
 import com.akiratochiro.life_and_money_api.transaction.TransactionService;
+import com.akiratochiro.life_and_money_api.user.UserResponse;
 import com.akiratochiro.life_and_money_api.user.UserService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.Clock;
 
 /**
  * A conta como um todo: excluir e exportar tudo o que é do usuário.
@@ -28,6 +34,7 @@ class AccountService {
     private final GoalService goalService;
     private final AccountCredentials accountCredentials;
     private final RateLimiter rateLimiter;
+    private final Clock clock;
 
     AccountService(UserService userService,
                    CategoryService categoryService,
@@ -35,7 +42,8 @@ class AccountService {
                    BudgetService budgetService,
                    GoalService goalService,
                    AccountCredentials accountCredentials,
-                   RateLimiter rateLimiter) {
+                   RateLimiter rateLimiter,
+                   Clock clock) {
         this.userService = userService;
         this.categoryService = categoryService;
         this.transactionService = transactionService;
@@ -43,6 +51,19 @@ class AccountService {
         this.goalService = goalService;
         this.accountCredentials = accountCredentials;
         this.rateLimiter = rateLimiter;
+        this.clock = clock;
+    }
+
+    /** Uma leitura só, numa transação somente leitura: o export é uma foto consistente da conta. */
+    @Transactional(readOnly = true)
+    AccountExport export(Long userId) {
+        return new AccountExport(
+                clock.instant(),
+                UserResponse.from(userService.findById(userId)),
+                categoryService.list(userId, true).stream().map(CategoryResponse::from).toList(),
+                transactionService.listAll(userId).stream().map(TransactionResponse::from).toList(),
+                budgetService.listAll(userId).stream().map(BudgetItemResponse::from).toList(),
+                goalService.list(userId));
     }
 
     /**

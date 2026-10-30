@@ -102,6 +102,12 @@ public class TransactionService {
                 .collect(Collectors.toMap(GoalTotal::goalId, GoalTotal::total));
     }
 
+    /** Todas as transações do usuário, da mais antiga para a mais recente: para o export da conta. */
+    @Transactional(readOnly = true)
+    public List<Transaction> listAll(Long userId) {
+        return transactionRepository.findAllByUserIdOrderByTransactionDateAscIdAsc(userId);
+    }
+
     /** Para a exclusão da conta: apaga tudo o que esta feature guarda do usuário. */
     @Transactional
     public void deleteAllOf(Long userId) {

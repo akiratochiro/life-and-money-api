@@ -78,6 +78,12 @@ public class BudgetService {
         return budgetItemRepository.findAllValidInMonth(userId, month.atDay(1));
     }
 
+    /** Todo o histórico do orçamento, inclusive os itens encerrados: para o export da conta. */
+    @Transactional(readOnly = true)
+    public List<BudgetItem> listAll(Long userId) {
+        return budgetItemRepository.findAllByUserIdOrderByValidFromAscIdAsc(userId);
+    }
+
     /** Para a exclusão da conta: apaga tudo o que esta feature guarda do usuário. */
     @Transactional
     public void deleteAllOf(Long userId) {

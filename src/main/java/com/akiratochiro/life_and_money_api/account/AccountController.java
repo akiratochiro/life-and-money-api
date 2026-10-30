@@ -5,15 +5,20 @@ import com.akiratochiro.life_and_money_api.shared.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.time.ZoneId;
 
 @RestController
 @RequestMapping("/users/me")
@@ -25,6 +30,21 @@ public class AccountController {
     AccountController(AccountService accountService, AccountCredentials accountCredentials) {
         this.accountService = accountService;
         this.accountCredentials = accountCredentials;
+    }
+
+    @GetMapping("/export")
+    @Operation(summary = "Exporta todos os dados da conta em JSON",
+            description = "Perfil, categorias (inclusive arquivadas), transações, histórico do orçamento e "
+                    + "metas, no mesmo formato das outras respostas. Vem como anexo para download.")
+    public ResponseEntity<AccountExport> export(@AuthenticationPrincipal Jwt jwt) {
+        AccountExport export = accountService.export(CurrentUser.id(jwt));
+        String date = export.exportedAt().atZone(ZoneId.of("America/Sao_Paulo")).toLocalDate().toString();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                        .filename("life-and-money-" + date + ".json")
+                        .build()
+                        .toString())
+                .body(export);
     }
 
     @DeleteMapping
