@@ -14,8 +14,7 @@ public record RegisterRequest(
         @Size(max = 255, message = "O e-mail deve ter no máximo 255 caracteres.")
         String email,
 
-        @NotBlank(message = "Informe uma senha.")
-        @Size(min = 8, max = 72, message = "A senha deve ter entre 8 e 72 caracteres.")
+        @ValidPassword
         String password
 ) {
 }
