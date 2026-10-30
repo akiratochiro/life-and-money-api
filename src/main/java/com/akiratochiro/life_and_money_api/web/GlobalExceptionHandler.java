@@ -8,6 +8,7 @@ import com.akiratochiro.life_and_money_api.category.CategoryAlreadyExistsExcepti
 import com.akiratochiro.life_and_money_api.category.CategoryArchivedException;
 import com.akiratochiro.life_and_money_api.category.CategoryNotFoundException;
 import com.akiratochiro.life_and_money_api.goal.InvalidGoalDeadlineException;
+import com.akiratochiro.life_and_money_api.ratelimit.RateLimitExceededException;
 import com.akiratochiro.life_and_money_api.shared.GoalNotFoundException;
 import com.akiratochiro.life_and_money_api.transaction.GoalRequiresSavingCategoryException;
 import com.akiratochiro.life_and_money_api.transaction.TransactionNotFoundException;
@@ -18,7 +19,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -145,6 +148,35 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidGoalDeadlineException.class)
     public ProblemDetail handleInvalidGoalDeadline(InvalidGoalDeadlineException ex) {
         return unprocessable("Prazo inválido", ex);
+    }
+
+    // 429
+
+    /**
+     * O tempo de espera vai em dois lugares: no cabeçalho {@code Retry-After}, que é o padrão HTTP
+     * e o que clientes genéricos entendem, e em {@code retryAfterSeconds} no corpo, que o front lê
+     * junto com o resto do ProblemDetail.
+     */
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ProblemDetail> handleRateLimitExceeded(RateLimitExceededException ex) {
+        long seconds = Math.max(1, (ex.getRetryAfter().toMillis() + 999) / 1000);
+
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.TOO_MANY_REQUESTS,
+                "Muitas tentativas em pouco tempo. Tente de novo em " + humanize(seconds) + ".");
+        problem.setTitle("Muitas tentativas");
+        problem.setProperty("retryAfterSeconds", seconds);
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(seconds))
+                .body(problem);
+    }
+
+    private static String humanize(long seconds) {
+        if (seconds < 60) {
+            return seconds == 1 ? "1 segundo" : seconds + " segundos";
+        }
+        long minutes = (seconds + 59) / 60;
+        return minutes == 1 ? "1 minuto" : minutes + " minutos";
     }
 
     private static ProblemDetail notFound(String title, RuntimeException ex) {

@@ -1,10 +1,14 @@
 package com.akiratochiro.life_and_money_api.auth;
 
+import com.akiratochiro.life_and_money_api.ratelimit.ClientIpResolver;
+import com.akiratochiro.life_and_money_api.ratelimit.RateLimit;
+import com.akiratochiro.life_and_money_api.ratelimit.RateLimiter;
 import com.akiratochiro.life_and_money_api.user.User;
 import com.akiratochiro.life_and_money_api.user.UserResponse;
 import com.akiratochiro.life_and_money_api.user.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
@@ -53,26 +57,33 @@ public class AuthController {
     private final RefreshTokenCookie refreshTokenCookie;
     private final PasswordResetService passwordResetService;
     private final PasswordResetQueue passwordResetQueue;
+    private final RateLimiter rateLimiter;
+    private final ClientIpResolver clientIpResolver;
 
     public AuthController(UserService userService,
                           TokenService tokenService,
                           RefreshTokenService refreshTokenService,
                           RefreshTokenCookie refreshTokenCookie,
                           PasswordResetService passwordResetService,
-                          PasswordResetQueue passwordResetQueue) {
+                          PasswordResetQueue passwordResetQueue,
+                          RateLimiter rateLimiter,
+                          ClientIpResolver clientIpResolver) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.refreshTokenCookie = refreshTokenCookie;
         this.passwordResetService = passwordResetService;
         this.passwordResetQueue = passwordResetQueue;
+        this.rateLimiter = rateLimiter;
+        this.clientIpResolver = clientIpResolver;
     }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
     @Operation(summary = "Cadastra um usuário",
             description = "Não abre sessão: depois do cadastro, chame POST /auth/login.")
-    public UserResponse register(@Valid @RequestBody RegisterRequest request) {
+    public UserResponse register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+        rateLimiter.consume(RateLimit.REGISTER_PER_IP, clientIpResolver.resolve(httpRequest));
         User user = userService.register(request.name(), request.email(), request.password());
         return UserResponse.from(user);
     }
@@ -81,7 +92,10 @@ public class AuthController {
     @Operation(summary = "Abre uma sessão",
             description = "Devolve o access token no corpo e o refresh token num cookie HttpOnly.")
     public TokenResponse login(@Valid @RequestBody LoginRequest request,
+                               HttpServletRequest httpRequest,
                                HttpServletResponse response) {
+        rateLimiter.consume(RateLimit.LOGIN_PER_IP, clientIpResolver.resolve(httpRequest));
+        rateLimiter.consume(RateLimit.LOGIN_PER_EMAIL, request.email());
         User user = userService.authenticate(request.email(), request.password());
         issueRefreshCookie(response, refreshTokenService.issue(user.getId()));
         return tokenService.generateToken(user);
@@ -94,8 +108,10 @@ public class AuthController {
     public TokenResponse refresh(
             @CookieValue(name = RefreshTokenCookie.NAME, required = false) String refreshToken,
             @RequestHeader(name = REFRESH_REQUEST_HEADER, required = false) String refreshRequestHeader,
+            HttpServletRequest httpRequest,
             HttpServletResponse response) {
 
+        rateLimiter.consume(RateLimit.REFRESH_PER_IP, clientIpResolver.resolve(httpRequest));
         requireRefreshRequestHeader(refreshRequestHeader);
 
         RefreshTokenService.Rotation rotation = refreshTokenService.rotate(refreshToken);
@@ -121,7 +137,10 @@ public class AuthController {
             description = "Responde sempre 202 com a mesma mensagem, exista ou não uma conta com o "
                     + "e-mail: a resposta não pode servir para descobrir quem tem cadastro. "
                     + "Quando a conta existe, o link sai por e-mail e vale por 30 minutos.")
-    public ForgotPasswordResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+    public ForgotPasswordResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request,
+                                                 HttpServletRequest httpRequest) {
+        // O limite é por IP, nunca por conta: um 429 que dependesse de a conta existir a revelaria.
+        rateLimiter.consume(RateLimit.FORGOT_PASSWORD_PER_IP, clientIpResolver.resolve(httpRequest));
         passwordResetQueue.enqueue(request.email());
         return ForgotPasswordResponse.INSTANCE;
     }
