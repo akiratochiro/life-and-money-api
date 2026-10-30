@@ -28,5 +28,6 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       APP_EMAIL_PROVIDER: log
       APP_FRONT_URL: http://localhost:5173
+      PROXY_SHARED_SECRET: compose-sem-worker
     ports:
       - '8080:8080'

@@ -11,6 +11,9 @@ spring:
       enabled: true
 
 app:
+  # No dev não há Worker: o IP vem da conexão, e o segredo só precisa existir.
+  client-ip:
+    proxy-secret: dev-sem-worker
   front-url: http://localhost:5173
   email:
     # No desenvolvimento nenhum e-mail sai: o link aparece no log da aplicação.

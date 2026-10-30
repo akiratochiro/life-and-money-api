@@ -32,6 +32,10 @@ services:
       # Remetente verificado no Brevo.
       - key: EMAIL_FROM
         sync: false
+      # Segredo que o Worker do front manda junto com o IP do usuário. O mesmo valor vai como
+      # secret no Worker. Gere com: openssl rand -base64 32
+      - key: PROXY_SHARED_SECRET
+        sync: false
       # URL do front, sem barra no final: é a base dos links enviados por e-mail.
       - key: APP_FRONT_URL
         value: https://life-and-money-web.akira-tochiro23.workers.dev

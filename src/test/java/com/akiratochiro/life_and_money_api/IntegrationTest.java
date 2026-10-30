@@ -23,7 +23,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "jwt.secret=46N3Mn7ipRBtI+LDENQDLRM2mXOGfeamGMqAcgFS9Gc=",
         "app.email.provider=log",
-        "app.front-url=http://localhost:5173"
+        "app.front-url=http://localhost:5173",
+        "app.client-ip.proxy-secret=segredo-dos-testes"
 })
 @AutoConfigureMockMvc
 @Import({TestcontainersConfiguration.class, TestSupportConfiguration.class})

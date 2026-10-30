@@ -1,6 +1,9 @@
 server:
   # Em produção o serviço de hospedagem escolhe a porta e a informa em PORT.
   port: ${PORT:8080}
+  # O Spring não lê X-Forwarded-*: o X-Forwarded-For é falsificável atrás do Render, e o IP do
+  # cliente é resolvido pelo ClientIpResolver, que sabe em quem confiar.
+  forward-headers-strategy: none
   servlet:
     # Tudo sob /api. Em produção o Worker do front repassa /api/* para cá sem reescrever o
     # caminho, e no desenvolvimento o proxy do Vite faz o mesmo: o caminho que o navegador vê é
@@ -28,6 +31,10 @@ jwt:
   refresh-expiration: 30d
 
 app:
+  client-ip:
+    # Segredo que o Worker do front manda em X-Proxy-Auth para o X-Client-IP ser aceito. Sem
+    # padrão: sem ele, todo usuário que passa pelo Worker dividiria o mesmo limite de tentativas.
+    proxy-secret: ${PROXY_SHARED_SECRET}
   # Endereço do front, para montar links que vão por e-mail (redefinição de senha).
   front-url: ${APP_FRONT_URL}
   email:
