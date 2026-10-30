@@ -21,7 +21,13 @@ public enum RateLimit {
     FORGOT_PASSWORD_PER_IP(5, Duration.ofMinutes(15)),
 
     /** O app renova a cada ~14 minutos; várias abas e várias pessoas no mesmo IP somam. */
-    REFRESH_PER_IP(30, Duration.ofMinutes(1));
+    REFRESH_PER_IP(30, Duration.ofMinutes(1)),
+
+    /**
+     * Tentativas de senha para excluir a conta. Por usuário: quem tem um access token roubado não
+     * pode usar este endpoint para testar senhas.
+     */
+    ACCOUNT_DELETION_PER_USER(5, Duration.ofMinutes(15));
 
     final long capacity;
     final Duration period;

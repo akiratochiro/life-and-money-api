@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.budget;
 
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -20,4 +21,12 @@ interface BudgetItemRepository extends JpaRepository<BudgetItem, Long> {
             """)
     List<BudgetItem> findAllValidInMonth(@Param("userId") Long userId,
                                          @Param("monthStart") LocalDate monthStart);
+
+    /**
+     * Apaga tudo do usuário, para a exclusão da conta. O flush antes e o clear depois evitam que
+     * alterações pendentes se percam ou que entidades já apagadas continuem no contexto.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from BudgetItem x where x.userId = :userId")
+    int deleteAllByUserId(@Param("userId") Long userId);
 }

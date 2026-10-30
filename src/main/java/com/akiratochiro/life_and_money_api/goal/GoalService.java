@@ -77,4 +77,10 @@ public class GoalService {
         return savingsGoalRepository.findByIdAndUserId(goalId, userId)
                 .orElseThrow(GoalNotFoundException::new);
     }
+
+    /** Para a exclusão da conta: apaga tudo o que esta feature guarda do usuário. */
+    @Transactional
+    public void deleteAllOf(Long userId) {
+        savingsGoalRepository.deleteAllByUserId(userId);
+    }
 }

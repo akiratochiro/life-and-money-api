@@ -13,6 +13,7 @@ import com.akiratochiro.life_and_money_api.shared.GoalNotFoundException;
 import com.akiratochiro.life_and_money_api.transaction.GoalRequiresSavingCategoryException;
 import com.akiratochiro.life_and_money_api.transaction.TransactionNotFoundException;
 import com.akiratochiro.life_and_money_api.user.EmailAlreadyInUseException;
+import com.akiratochiro.life_and_money_api.user.IncorrectPasswordException;
 import com.akiratochiro.life_and_money_api.user.InvalidCredentialsException;
 import com.akiratochiro.life_and_money_api.user.UserNotFoundException;
 import org.slf4j.Logger;
@@ -75,6 +76,16 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
         problem.setTitle("Sessão encerrada");
+        return problem;
+    }
+
+    // 403
+
+    /** Com o campo marcado, para o front mostrar o erro no campo de senha. */
+    @ExceptionHandler(IncorrectPasswordException.class)
+    public ProblemDetail handleIncorrectPassword(IncorrectPasswordException ex) {
+        ProblemDetail problem = problem(HttpStatus.FORBIDDEN, "Senha incorreta", ex);
+        problem.setProperty("errors", Map.of("password", ex.getMessage()));
         return problem;
     }
 

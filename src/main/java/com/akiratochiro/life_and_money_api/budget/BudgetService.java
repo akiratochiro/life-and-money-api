@@ -78,4 +78,9 @@ public class BudgetService {
         return budgetItemRepository.findAllValidInMonth(userId, month.atDay(1));
     }
 
+    /** Para a exclusão da conta: apaga tudo o que esta feature guarda do usuário. */
+    @Transactional
+    public void deleteAllOf(Long userId) {
+        budgetItemRepository.deleteAllByUserId(userId);
+    }
 }

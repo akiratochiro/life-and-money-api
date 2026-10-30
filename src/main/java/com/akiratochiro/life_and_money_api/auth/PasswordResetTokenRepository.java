@@ -44,4 +44,12 @@ interface PasswordResetTokenRepository extends JpaRepository<PasswordResetToken,
                and t.revokedAt is null
             """)
     int revokeActiveOfUser(@Param("userId") Long userId, @Param("moment") Instant moment);
+
+    /**
+     * Apaga tudo do usuário, para a exclusão da conta. O flush antes e o clear depois evitam que
+     * alterações pendentes se percam ou que entidades já apagadas continuem no contexto.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from PasswordResetToken x where x.userId = :userId")
+    int deleteAllByUserId(@Param("userId") Long userId);
 }

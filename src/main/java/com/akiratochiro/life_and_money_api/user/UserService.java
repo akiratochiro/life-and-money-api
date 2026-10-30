@@ -63,6 +63,30 @@ public class UserService {
         return userRepository.findByEmail(User.normalizeEmail(email));
     }
 
+    /**
+     * Confirma a senha de quem já está logado, antes de uma ação que não tem volta.
+     *
+     * @throws IncorrectPasswordException se a senha não confere
+     */
+    @Transactional(readOnly = true)
+    public void verifyPassword(Long userId, String rawPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(UserNotFoundException::new);
+        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+            throw new IncorrectPasswordException();
+        }
+    }
+
+    /**
+     * Apaga o usuário. Os dados das features precisam ter sido apagados antes, na mesma transação:
+     * as chaves estrangeiras não têm cascata, então um dado esquecido faz esta exclusão falhar em vez
+     * de ficar órfão.
+     */
+    @Transactional
+    public void delete(Long userId) {
+        userRepository.deleteById(userId);
+    }
+
     @Transactional
     public void changePassword(Long userId, String rawPassword) {
         User user = userRepository.findById(userId)

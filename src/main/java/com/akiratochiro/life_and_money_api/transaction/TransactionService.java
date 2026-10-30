@@ -102,7 +102,9 @@ public class TransactionService {
                 .collect(Collectors.toMap(GoalTotal::goalId, GoalTotal::total));
     }
 
-
-
-
+    /** Para a exclusão da conta: apaga tudo o que esta feature guarda do usuário. */
+    @Transactional
+    public void deleteAllOf(Long userId) {
+        transactionRepository.deleteAllByUserId(userId);
+    }
 }

@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.transaction;
 
+import org.springframework.data.jpa.repository.Modifying;
 import com.akiratochiro.life_and_money_api.category.CategoryType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -58,4 +59,12 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long>{
         group by t.goalId
         """)
     List<GoalTotal> sumByGoal(@Param("userId") Long userId);
+
+    /**
+     * Apaga tudo do usuário, para a exclusão da conta. O flush antes e o clear depois evitam que
+     * alterações pendentes se percam ou que entidades já apagadas continuem no contexto.
+     */
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("delete from Transaction x where x.userId = :userId")
+    int deleteAllByUserId(@Param("userId") Long userId);
 }

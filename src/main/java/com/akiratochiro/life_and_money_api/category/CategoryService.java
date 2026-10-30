@@ -89,4 +89,10 @@ public class CategoryService {
     public Category getOwned(Long userId, Long categoryId) {
         return findOwned(userId, categoryId);
     }
+
+    /** Para a exclusão da conta: apaga tudo o que esta feature guarda do usuário. */
+    @Transactional
+    public void deleteAllOf(Long userId) {
+        categoryRepository.deleteAllByUserId(userId);
+    }
 }
