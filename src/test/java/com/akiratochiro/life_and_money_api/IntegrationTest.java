@@ -19,7 +19,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * todas as subclasses, então o Spring reaproveita o mesmo contexto em cache) contra um
  * PostgreSQL de verdade em container, e concentra os atalhos repetidos em todos os cenários.
  */
-@SpringBootTest(properties = "jwt.secret=46N3Mn7ipRBtI+LDENQDLRM2mXOGfeamGMqAcgFS9Gc=")
+@SpringBootTest(properties = {
+        "jwt.secret=46N3Mn7ipRBtI+LDENQDLRM2mXOGfeamGMqAcgFS9Gc=",
+        "app.email.provider=log",
+        "app.front-url=http://localhost:5173"
+})
 @AutoConfigureMockMvc
 @Import(TestcontainersConfiguration.class)
 public abstract class IntegrationTest {

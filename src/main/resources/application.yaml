@@ -28,6 +28,17 @@ jwt:
   refresh-expiration: 30d
 
 app:
+  # Endereço do front, para montar links que vão por e-mail (redefinição de senha).
+  front-url: ${APP_FRONT_URL}
+  email:
+    # 'brevo' em produção, 'log' no desenvolvimento. Sem padrão: esquecer a variável impede a
+    # API de subir, em vez de mandar links de redefinição de senha para o log.
+    provider: ${APP_EMAIL_PROVIDER}
+    # Remetente verificado no Brevo.
+    from: ${EMAIL_FROM:}
+    from-name: Life and Money
+    brevo:
+      api-key: ${BREVO_API_KEY:}
   auth:
     refresh-cookie:
       # O front e a API ficam na mesma origem (o Worker do front faz proxy de /api/*), então

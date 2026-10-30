@@ -26,5 +26,7 @@ services:
       SPRING_DATASOURCE_USERNAME: lifeandmoney
       SPRING_DATASOURCE_PASSWORD: secret
       JWT_SECRET: ${JWT_SECRET}
+      APP_EMAIL_PROVIDER: log
+      APP_FRONT_URL: http://localhost:5173
     ports:
       - '8080:8080'

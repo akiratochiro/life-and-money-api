@@ -23,3 +23,15 @@ services:
         sync: false
       - key: SPRING_DATASOURCE_PASSWORD
         sync: false
+      # E-mails (redefinição de senha) saem pela API HTTP do Brevo: o Render gratuito bloqueia SMTP.
+      - key: APP_EMAIL_PROVIDER
+        value: brevo
+      # Chave da API do Brevo (Settings > SMTP & API > API Keys).
+      - key: BREVO_API_KEY
+        sync: false
+      # Remetente verificado no Brevo.
+      - key: EMAIL_FROM
+        sync: false
+      # URL do front, sem barra no final: é a base dos links enviados por e-mail.
+      - key: APP_FRONT_URL
+        value: https://life-and-money-web.akira-tochiro23.workers.dev

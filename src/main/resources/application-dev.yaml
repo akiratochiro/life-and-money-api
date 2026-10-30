@@ -11,6 +11,10 @@ spring:
       enabled: true
 
 app:
+  front-url: http://localhost:5173
+  email:
+    # No desenvolvimento nenhum e-mail sai: o link aparece no log da aplicação.
+    provider: log
   auth:
     refresh-cookie:
       # Em http o navegador recusaria um cookie Secure. O SameSite continua Strict, como em
