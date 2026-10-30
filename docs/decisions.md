@@ -198,3 +198,39 @@ The secret is one more thing to keep in sync: it lives in Render and as a Worker
 Worker lacks it, every user falls back to the shared Cloudflare address. `forgot-password` is
 limited only per IP, never per account, so a `429` cannot reveal whether an account exists.
 
+## 8. Account deletion orchestrated by an `account` package, without `ON DELETE CASCADE`
+
+**Context.** Users must be able to delete their account and everything in it, in one transaction,
+and to export all their data. Every table points to `users`, transactions point to categories and
+goals, and budget items point to categories. `user` depends on no other package, and `category`
+already depends on `user`, so `user` cannot call the features without creating a cycle.
+
+**Decision.** A new `account` package owns `DELETE /users/me` and `GET /users/me/export`. Like
+`dashboard`, it depends on every feature and no feature depends on it. Deletion calls each
+feature's `deleteAllOf(userId)` in foreign key order (transactions, budget, goals, categories,
+sessions and reset tokens, then the user) inside a single transaction; each feature deletes its
+own rows through its own repository. The export reuses the response DTOs the API already
+publishes, and leaves out the password hash and the tokens, which are credentials rather than the
+person's data.
+
+**Consequences.** The options considered were:
+
+- `ON DELETE CASCADE` on every foreign key: the least code, but the most important rule of the
+  feature would live only in the schema, any stray `DELETE FROM users` would silently take
+  everything with it, and no feature code would run on deletion;
+- an event that each feature listens to: respects package boundaries, but the foreign key order
+  would be scattered across `@Order` annotations in different packages;
+- an orchestrating package (chosen): boundaries respected, order explicit in one method.
+
+The foreign keys stay `NO ACTION` on purpose, as a safety net: if a future feature forgets to
+delete its rows, deleting the user fails with an integrity error instead of leaving orphans. This
+was verified by removing goals from the orchestration, which made the deletion fail on
+`fk_savings_goals_user`. The integration test lists every table with a `user_id` column from
+`information_schema`, so a new table is checked without anyone remembering to add it.
+
+A wrong password answers `403`, not `401`: the front treats any `401` as an ended session, and a
+typo must not log the user out. Password attempts are limited to 5 per 15 minutes per user, so a
+stolen access token cannot be used to guess the password here. The password travels in the body
+of a `DELETE`, which HTTP allows without defining its meaning; it was checked end to end through
+the Vite proxy and the Worker.
+

@@ -27,6 +27,8 @@ account only ever sees its own data.
 - **Rate limiting** on login (per IP and per email), registration, password reset and token
   refresh, answering `429` with `Retry-After`; the client IP comes from a header the front's
   Worker signs with a shared secret, never from the spoofable `X-Forwarded-For`
+- **Account deletion and data export**: deleting the account requires the password and removes
+  every row of the user in a single transaction; the export returns all of it as JSON
 - **Password reset by email**: a single-use, 30-minute link whose token is stored only as a
   SHA-256 hash; the request answers the same whether or not the account exists, in body and in
   time, and a reset ends every session of the user
@@ -100,7 +102,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Area | Endpoints |
 |---|---|
 | Auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/forgot-password` · `POST /auth/reset-password` |
-| User | `GET /users/me` |
+| User | `GET /users/me` · `GET /users/me/export` · `DELETE /users/me` |
 | Categories | `POST /categories` · `GET /categories` · `PATCH /categories/{id}` · `POST /categories/{id}/archive` |
 | Transactions | `POST /transactions` · `GET /transactions?month=YYYY-MM` · `PUT /transactions/{id}` · `DELETE /transactions/{id}` |
 | Budgets | `GET /budgets?month=YYYY-MM` · `PUT /budgets/{categoryId}` · `DELETE /budgets/{categoryId}` |

@@ -62,6 +62,12 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   com `Retry-After` e `retryAfterSeconds`. Nunca limite por conta algo que revele se ela existe.
   Os testes de integração rodam com `app.rate-limit.enabled=false`; os limites têm o
   `RateLimitIntegrationTest`, com IPs próprios por teste.
+- **Toda tabela nova com `user_id` entra no `account/AccountService`**: um `deleteAllOf(userId)`
+  na feature, chamado na ordem das FKs, e os dados no export. As FKs não têm `ON DELETE CASCADE`
+  de propósito (decisão 8): se esquecer, a exclusão da conta falha em vez de deixar órfãos, e o
+  `AccountIntegrationTest` (que lê as tabelas do `information_schema`) acusa.
+- **Senha errada de quem já está logado é 403** (`IncorrectPasswordException`), nunca 401: o front
+  trata 401 como sessão encerrada.
 - **E-mail atrás de `EmailSender`** (pacote `email`): `brevo` em produção, `log` no dev (só loga o
   link). `app.email.provider` não tem padrão, de propósito. Nos testes de integração, o
   `RecordingEmailSender` guarda as mensagens e o `MutableClock` controla o tempo.
