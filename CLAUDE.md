@@ -54,6 +54,14 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   `HttpOnly`, `SameSite=Strict`, com path `/api/auth`, salvo como hash SHA-256 e rotacionado a
   cada uso. `POST /auth/refresh` exige o header `X-Refresh-Request`, segunda barreira contra
   CSRF (decisões 4 e 5).
+- **IP do cliente só pelo `ClientIpResolver`**: `X-Client-IP` com o segredo do Worker
+  (`X-Proxy-Auth`), senão `CF-Connecting-IP`, senão o endereço da conexão. Nunca use
+  `X-Forwarded-For` (falsificável atrás do Render) nem mude `server.forward-headers-strategy` de
+  `none` (decisão 7).
+- **Rate limit em memória** (`ratelimit`, Bucket4j + Caffeine): limites no enum `RateLimit`, 429
+  com `Retry-After` e `retryAfterSeconds`. Nunca limite por conta algo que revele se ela existe.
+  Os testes de integração rodam com `app.rate-limit.enabled=false`; os limites têm o
+  `RateLimitIntegrationTest`, com IPs próprios por teste.
 - **E-mail atrás de `EmailSender`** (pacote `email`): `brevo` em produção, `log` no dev (só loga o
   link). `app.email.provider` não tem padrão, de propósito. Nos testes de integração, o
   `RecordingEmailSender` guarda as mensagens e o `MutableClock` controla o tempo.

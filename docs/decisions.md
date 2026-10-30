@@ -154,3 +154,47 @@ Building this exposed a latent bug: `@Modifying(clearAutomatically = true)` clea
 persistence context after the update, silently discarding pending changes of the same
 transaction (here, the new password hash). Every `@Modifying` query now also flushes first.
 
+## 7. Rate limiting in memory, keyed by an IP the Worker vouches for
+
+**Context.** `/auth/login`, `/auth/register`, `/auth/forgot-password` and `/auth/refresh` could be
+called without limit: password guessing, mass sign-ups and draining the email quota cost nothing.
+A per-IP limit needs the client's real IP, and behind Render and the front's Worker neither
+standard header carries it:
+
+- `X-Forwarded-For` is spoofable: Render does not strip what the caller sends, it only appends
+  the proxy address;
+- `CF-Connecting-IP` cannot be spoofed (Cloudflare, in front of Render, overwrites it), but every
+  app request comes through the Worker, and on a Worker subrequest to another Cloudflare zone the
+  header carries a fixed Cloudflare address, the same for every user. Keying on it would put all
+  users in one bucket: anyone failing a few logins would lock everybody out.
+
+**Decision.** The Worker forwards the IP it received in `X-Client-IP`, with a shared secret in
+`X-Proxy-Auth`, after dropping any version of both sent by the browser. The API trusts
+`X-Client-IP` only when the secret matches (constant-time comparison); otherwise it uses
+`CF-Connecting-IP`, which is the real IP of anyone calling Render directly; and, without either,
+the connection address (development and tests). IPv6 addresses are grouped by their /64 prefix.
+`server.forward-headers-strategy` is `none`, so Spring never reads `X-Forwarded-For`.
+
+Limits use Bucket4j token buckets with gradual refill: login 20/min per IP and 10 per 15 min per
+email; register 5/h, forgot-password 5 per 15 min and refresh 30/min, per IP. Exceeding one returns
+`429` as `ProblemDetail`, with `Retry-After` and `retryAfterSeconds`.
+
+**Consequences.** The buckets live in memory, which fits a single instance and has three costs:
+
+- they reset on every deploy, restart and free-tier spin-down, so an attacker gets a fresh budget
+  after each one;
+- with more than one instance, each would keep its own buckets and the effective limit would
+  multiply by the instance count; at that point they would move to shared storage such as Redis;
+- memory grows with the number of keys, so buckets sit in a Caffeine cache capped at 100,000
+  entries that expire after two idle hours; an attacker rotating keys evicts old buckets instead
+  of exhausting the free instance's memory.
+
+The per-email login limit can be turned against a user: someone can spend their 10 attempts and
+keep them locked out for up to 15 minutes. The alternative, counting only per IP, leaves password
+guessing from many IPs unchecked; for a personal finance app, a temporary lockout is the lesser
+evil.
+
+The secret is one more thing to keep in sync: it lives in Render and as a Worker secret, and if the
+Worker lacks it, every user falls back to the shared Cloudflare address. `forgot-password` is
+limited only per IP, never per account, so a `429` cannot reveal whether an account exists.
+

@@ -136,6 +136,23 @@ schema do zero na primeira subida.
    esse endpoint responde;
 5. Guarde a URL da API, algo como `https://life-and-money-api.onrender.com`.
 
+#### 2.0. Segredo entre o Worker e a API
+
+Os limites de tentativas são por IP, e o IP real do usuário só chega à API se o Worker do front
+provar que é ele (ver a decisão 7). Gere um segredo e cadastre **o mesmo valor** nos dois lados:
+
+```bash
+openssl rand -base64 32
+```
+
+- no Render: variável `PROXY_SHARED_SECRET` no serviço da API. Sem ela, a API não sobe;
+- no Cloudflare: Workers & Pages → `life-and-money-web` → **Settings → Variables and Secrets** →
+  **Add**, tipo **Secret**, nome `PROXY_SHARED_SECRET`. Ou, no repositório do front,
+  `npx wrangler secret put PROXY_SHARED_SECRET`.
+
+Se só um lado tiver o segredo, nada quebra de imediato, mas todo usuário passa a dividir um único
+limite de tentativas: o de um endereço fixo da Cloudflare.
+
 #### 2.1. E-mail no Brevo
 
 1. Crie uma conta gratuita em [brevo.com](https://www.brevo.com);
@@ -217,6 +234,7 @@ passar, o front.
 | `BREVO_API_KEY` | API | sim, com `brevo` | — |
 | `EMAIL_FROM` | API | sim, com `brevo` | — |
 | `APP_FRONT_URL` | API | sim | — (base dos links enviados por e-mail) |
+| `PROXY_SHARED_SECRET` | API e Worker (secret) | sim | — (o mesmo valor nos dois) |
 | `API_ORIGIN` | front, no `wrangler.jsonc` | sim | — |
 
 ## Se algo não funcionar
@@ -228,6 +246,8 @@ passar, o front.
 | Toda chamada à API responde 404 ou 502 | `API_ORIGIN` no `wrangler.jsonc` errado, ou com barra no final |
 | A API não sobe, com erro do Flyway | Faltou `?sslmode=require` na URL, ou as credenciais do banco estão erradas |
 | Abrir `/goals` direto dá 404 | O `not_found_handling` saiu do `wrangler.jsonc`, ou o `assets.directory` não aponta para `dist` |
+| A API não sobe, com erro sobre `app.client-ip.proxy-secret` | Faltou `PROXY_SHARED_SECRET` no Render |
+| Usuários diferentes recebem "Muitas tentativas" ao mesmo tempo | O Worker está sem o secret `PROXY_SHARED_SECRET`, ou com um valor diferente do Render: todos caem no mesmo limite |
 | A API não sobe, com erro sobre `app.email` | Faltou `BREVO_API_KEY` ou `EMAIL_FROM` no Render |
 | O e-mail não chega e o Brevo mandou um alerta de IP novo | A faixa de saída do Render mudou ou não foi autorizada: confira a aba **Outbound** do serviço no Render e atualize **Authorized IPs** no Brevo (passo 2.1). O pedido bloqueado se perde; peça o link de novo |
 | O e-mail de redefinição não chega | Confira o spam. Depois, o log da API (falha no envio aparece como erro com o id do usuário) e o painel do Brevo (cota diária e remetente confirmado) |

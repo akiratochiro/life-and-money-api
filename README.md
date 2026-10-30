@@ -24,6 +24,9 @@ account only ever sees its own data.
 
 - **Authentication** with a short-lived JWT access token plus a rotating refresh token in an
   `HttpOnly` cookie, BCrypt password hashing and per-user data isolation
+- **Rate limiting** on login (per IP and per email), registration, password reset and token
+  refresh, answering `429` with `Retry-After`; the client IP comes from a header the front's
+  Worker signs with a shared secret, never from the spoofable `X-Forwarded-For`
 - **Password reset by email**: a single-use, 30-minute link whose token is stored only as a
   SHA-256 hash; the request answers the same whether or not the account exists, in body and in
   time, and a reset ends every session of the user
