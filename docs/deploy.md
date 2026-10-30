@@ -143,7 +143,20 @@ schema do zero na primeira subida.
    serve) e confirme pelo link que o Brevo envia para ele;
 3. Em **SMTP & API → API Keys**, gere uma chave;
 4. No Render, preencha `BREVO_API_KEY` com a chave e `EMAIL_FROM` com o remetente confirmado.
-   `APP_EMAIL_PROVIDER` e `APP_FRONT_URL` já vêm do `render.yaml`.
+   `APP_EMAIL_PROVIDER` e `APP_FRONT_URL` já vêm do `render.yaml`;
+5. Autorize as faixas de IP de saída do Render no Brevo. Depois dos primeiros dias de uso, o Brevo
+   bloqueia chamadas de IPs que ele não conhece e manda um e-mail pedindo confirmação
+   ([docs](https://help.brevo.com/hc/en-us/articles/5740111683858-Authorize-and-block-IP-addresses-for-API-and-SMTP-security)).
+   O Render gratuito não tem IP fixo: a API sai por qualquer endereço de faixas compartilhadas
+   pela região ([docs](https://render.com/docs/outbound-ip-addresses)), então autorizar só o IP do
+   alerta quebraria no próximo deploy.
+   - No Render, abra o serviço → **Connect** (canto superior direito) → aba **Outbound** e copie
+     as faixas. Em 30/10/2026 eram `74.220.49.0/24` e `74.220.57.0/24`;
+   - No Brevo, em **Settings → Security → Authorized IPs**, adicione as faixas, uma por linha. O
+     Brevo aceita notação CIDR ([docs](https://developers.brevo.com/docs/ip-security)). Deixe o
+     bloqueio de IPs desconhecidos ligado: uma chave vazada só funciona de dentro do Render;
+   - Se um alerta trouxer um IP **fora** dessas faixas, não é a API: negue, apague a chave no
+     Brevo, gere outra e atualize `BREVO_API_KEY` no Render.
 
 ### 3. Front no Cloudflare Workers
 
@@ -216,6 +229,7 @@ passar, o front.
 | A API não sobe, com erro do Flyway | Faltou `?sslmode=require` na URL, ou as credenciais do banco estão erradas |
 | Abrir `/goals` direto dá 404 | O `not_found_handling` saiu do `wrangler.jsonc`, ou o `assets.directory` não aponta para `dist` |
 | A API não sobe, com erro sobre `app.email` | Faltou `BREVO_API_KEY` ou `EMAIL_FROM` no Render |
+| O e-mail não chega e o Brevo mandou um alerta de IP novo | A faixa de saída do Render mudou ou não foi autorizada: confira a aba **Outbound** do serviço no Render e atualize **Authorized IPs** no Brevo (passo 2.1). O pedido bloqueado se perde; peça o link de novo |
 | O e-mail de redefinição não chega | Confira o spam. Depois, o log da API (falha no envio aparece como erro com o id do usuário) e o painel do Brevo (cota diária e remetente confirmado) |
 | A primeira requisição demora um minuto | Instância gratuita hibernando. É o comportamento esperado |
 
