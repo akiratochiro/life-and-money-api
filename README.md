@@ -24,6 +24,9 @@ account only ever sees its own data.
 
 - **Authentication** with a short-lived JWT access token plus a rotating refresh token in an
   `HttpOnly` cookie, BCrypt password hashing and per-user data isolation
+- **Password reset by email**: a single-use, 30-minute link whose token is stored only as a
+  SHA-256 hash; the request answers the same whether or not the account exists, in body and in
+  time, and a reset ends every session of the user
 - **Categories** (income, expense, saving), archived instead of deleted to preserve history,
   with a default set created on registration
 - **Transactions** with exact decimal arithmetic (`BigDecimal` / `NUMERIC`)
@@ -93,7 +96,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 
 | Area | Endpoints |
 |---|---|
-| Auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` |
+| Auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/forgot-password` · `POST /auth/reset-password` |
 | User | `GET /users/me` |
 | Categories | `POST /categories` · `GET /categories` · `PATCH /categories/{id}` · `POST /categories/{id}/archive` |
 | Transactions | `POST /transactions` · `GET /transactions?month=YYYY-MM` · `PUT /transactions/{id}` · `DELETE /transactions/{id}` |

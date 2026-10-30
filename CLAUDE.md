@@ -17,7 +17,7 @@ Deploy: API em Docker no **Render** (free), banco no **Neon** (free), front no *
 ## Comandos
 
 ```bash
-./mvnw test                      # unitários + integração (Docker precisa estar rodando)
+./mvnw test                      # unitários + integração (Docker precisa estar rodando; JDK 25)
 docker compose --profile app up --build   # API + Postgres em containers
 ```
 
@@ -54,6 +54,14 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   `HttpOnly`, `SameSite=Strict`, com path `/api/auth`, salvo como hash SHA-256 e rotacionado a
   cada uso. `POST /auth/refresh` exige o header `X-Refresh-Request`, segunda barreira contra
   CSRF (decisões 4 e 5).
+- **E-mail atrás de `EmailSender`** (pacote `email`): `brevo` em produção, `log` no dev (só loga o
+  link). `app.email.provider` não tem padrão, de propósito. Nos testes de integração, o
+  `RecordingEmailSender` guarda as mensagens e o `MutableClock` controla o tempo.
+- **Tokens opacos** (refresh e redefinição de senha) usam `OpaqueTokens`: 32 bytes do
+  `SecureRandom` e só o SHA-256 no banco. Queries `@Modifying` usam `flushAutomatically = true`
+  junto com `clearAutomatically`, senão alterações pendentes da transação são descartadas.
+- **Nada que dependa de a conta existir pode mudar a resposta**, nem no corpo nem no tempo: o
+  `forgot-password` faz todo o trabalho fora da requisição (`PasswordResetQueue`).
 - **Front e API na mesma origem, sem CORS.** O Worker do front faz proxy de `/api/*` para a API,
   e o proxy do Vite faz o mesmo no dev (decisão 5). Não reintroduza CORS nem uma lista de
   origens: as requisições do proxy chegam com o `Origin` do front, e uma lista as recusaria.
@@ -84,6 +92,9 @@ reconfira antes de depender deles.
 - **Render:** 750 h de instância/mês; hiberna após 15 min sem tráfego (primeira requisição leva
   ~1 min). O Postgres gratuito do Render expira em 30 dias, por isso o banco fica no Neon.
 - **Neon:** plano gratuito permanente, 1 GB por projeto, 100 CU-hours de compute por projeto.
+- **Brevo** (e-mail, conferido em 30/10/2026): 300 e-mails/dia, sem limite mensal; envia sem
+  domínio próprio, trocando o remetente. O Render gratuito bloqueia SMTP, então o envio é pela API
+  HTTP (`email/BrevoEmailSender`).
 - **Cloudflare Workers:** 100.000 requisições/dia (zera à meia-noite UTC) e 10 ms de CPU por
   requisição, só para requisições que executam o script. Só `/api/*` executa (o proxy); os
   estáticos são gratuitos e ilimitados. Esperar a API não conta como CPU.

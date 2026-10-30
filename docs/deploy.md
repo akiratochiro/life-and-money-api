@@ -3,7 +3,8 @@
 Guia para colocar o Life and Money no ar: o front, a API e o PostgreSQL, com HTTPS.
 
 > **Os planos gratuitos mudam.** As informações abaixo foram conferidas nas páginas oficiais
-> em **23/10/2026** (Render e Neon) e **29/10/2026** (Cloudflare Workers). Antes de seguir, vale reconferir os limites de cada serviço, porque é
+> em **23/10/2026** (Render e Neon), **29/10/2026** (Cloudflare Workers) e **30/10/2026**
+> (Brevo e o bloqueio de SMTP do Render). Antes de seguir, vale reconferir os limites de cada serviço, porque é
 > exatamente esse tipo de informação que envelhece rápido.
 
 ## Onde cada parte vai
@@ -13,6 +14,7 @@ Guia para colocar o Life and Money no ar: o front, a API e o PostgreSQL, com HTT
 | Front (SPA estática) e proxy de `/api` | **Cloudflare Workers** | Plano gratuito permanente, requisições a arquivos estáticos ilimitadas, sem hibernação, HTTPS e domínio próprio incluídos. O proxy deixa o front e a API na mesma origem |
 | API (Docker) | **Render** | 750 horas de instância por mês, deploy direto de um Dockerfile, HTTPS automático |
 | PostgreSQL | **Neon** | Plano gratuito **permanente**, 1 GB por projeto |
+| E-mail (redefinição de senha) | **Brevo** | 300 e-mails por dia, sem prazo, e envia sem domínio próprio |
 
 ### O detalhe que decide o banco
 
@@ -78,6 +80,22 @@ Para o proxy, a conta fecha com folga:
 Passado o limite diário, só `/api/*` falha (com `429`) até a meia-noite UTC; o front continua
 carregando.
 
+### O detalhe que decide o e-mail
+
+O Render gratuito **bloqueia a saída nas portas de SMTP** (25, 465 e 587)
+([docs](https://render.com/docs/free)), então o e-mail sai pela API HTTP do provedor, na porta
+443. Entre os provedores com plano gratuito e API HTTP:
+
+| | Resend | Brevo |
+|---|---|---|
+| Limite | 3.000/mês e 100/dia ([preços](https://resend.com/pricing)) | 300/dia, sem limite mensal ([FAQ](https://help.brevo.com/hc/en-us/articles/208580669-FAQs-What-are-the-limits-of-the-Free-plan)) |
+| Sem domínio próprio | **Não envia**: o `resend.dev` só entrega para o e-mail da própria conta ([docs](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain)) | Envia: com remetente Gmail, troca o endereço por um do Brevo para passar no DMARC ([docs](https://help.brevo.com/hc/en-us/articles/14925263522578-Comply-with-Gmail-Yahoo-and-Microsoft-s-requirements-for-email-senders)) |
+
+O projeto não tem domínio próprio (`workers.dev` e `onrender.com` não são nossos), e comprar um é
+custo. Por isso o Brevo. O preço é a entregabilidade: com o remetente trocado, o e-mail pode cair
+no spam, e a tela de pedido avisa isso. Passado o limite diário, o Brevo segura até 1.000
+e-mails transacionais numa fila e descarta o resto.
+
 ## Passo a passo
 
 ### 1. Banco no Neon
@@ -111,10 +129,21 @@ schema do zero na primeira subida.
 2. Em [render.com](https://render.com), crie um **Blueprint** apontando para este repositório.
    O [`render.yaml`](../render.yaml) já descreve o serviço, e o Render vai pedir o valor das
    variáveis marcadas com `sync: false`;
-3. Preencha `JWT_SECRET` e as três variáveis do banco;
+3. Preencha `JWT_SECRET`, as três variáveis do banco e as do e-mail (passo 2.1). Sem
+   `BREVO_API_KEY` e `EMAIL_FROM`, a API **não sobe** — de propósito, para não cair num envio
+   que só registraria os links no log;
 4. Espere o build. O health check bate em `/api/health`, e o deploy só é considerado bom quando
    esse endpoint responde;
 5. Guarde a URL da API, algo como `https://life-and-money-api.onrender.com`.
+
+#### 2.1. E-mail no Brevo
+
+1. Crie uma conta gratuita em [brevo.com](https://www.brevo.com);
+2. Em **Senders, Domains & Dedicated IPs → Senders**, adicione o e-mail remetente (um Gmail
+   serve) e confirme pelo link que o Brevo envia para ele;
+3. Em **SMTP & API → API Keys**, gere uma chave;
+4. No Render, preencha `BREVO_API_KEY` com a chave e `EMAIL_FROM` com o remetente confirmado.
+   `APP_EMAIL_PROVIDER` e `APP_FRONT_URL` já vêm do `render.yaml`.
 
 ### 3. Front no Cloudflare Workers
 
@@ -171,6 +200,10 @@ passar, o front.
 | `REFRESH_COOKIE_SECURE` | API | não | `true` |
 | `REFRESH_COOKIE_SAME_SITE` | API | não | `Strict` |
 | `PORT` | API | não (o Render define) | `8080` |
+| `APP_EMAIL_PROVIDER` | API | sim | — (`brevo` no `render.yaml`, `log` no dev) |
+| `BREVO_API_KEY` | API | sim, com `brevo` | — |
+| `EMAIL_FROM` | API | sim, com `brevo` | — |
+| `APP_FRONT_URL` | API | sim | — (base dos links enviados por e-mail) |
 | `API_ORIGIN` | front, no `wrangler.jsonc` | sim | — |
 
 ## Se algo não funcionar
@@ -182,6 +215,8 @@ passar, o front.
 | Toda chamada à API responde 404 ou 502 | `API_ORIGIN` no `wrangler.jsonc` errado, ou com barra no final |
 | A API não sobe, com erro do Flyway | Faltou `?sslmode=require` na URL, ou as credenciais do banco estão erradas |
 | Abrir `/goals` direto dá 404 | O `not_found_handling` saiu do `wrangler.jsonc`, ou o `assets.directory` não aponta para `dist` |
+| A API não sobe, com erro sobre `app.email` | Faltou `BREVO_API_KEY` ou `EMAIL_FROM` no Render |
+| O e-mail de redefinição não chega | Confira o spam. Depois, o log da API (falha no envio aparece como erro com o id do usuário) e o painel do Brevo (cota diária e remetente confirmado) |
 | A primeira requisição demora um minuto | Instância gratuita hibernando. É o comportamento esperado |
 
 ## Documentação da API em produção

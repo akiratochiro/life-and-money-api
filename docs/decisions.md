@@ -103,3 +103,46 @@ preflight from another site gets no `Access-Control-Allow-Origin`.
 The cost is one more hop on every call, and each one counts against the Workers free plan
 (100,000 requests a day). Static files stay outside that count, since only `/api/*` runs the
 Worker script. Numbers are in [deploy.md](deploy.md).
+
+## 6. Password reset by email
+
+**Context.** Users who forget their password had no way back into their account. Any reset flow
+also opens two attack surfaces: discovering which emails have an account (enumeration), and
+reusing or guessing reset links.
+
+**Decision.** `POST /auth/forgot-password` always answers `202` with the same message. When the
+account exists, it stores a 256-bit `SecureRandom` token as a SHA-256 hash, valid for 30 minutes
+and once, invalidates the user's previous tokens and emails a link to the front.
+`POST /auth/reset-password` consumes the token, applies the registration password rules
+(`@ValidPassword`), stores the new BCrypt hash and revokes every refresh token of the user.
+
+Email goes through an `EmailSender` interface: Brevo's HTTP API in production, a logging
+implementation in development.
+
+**Consequences.** Enumeration is closed in time as well as in body. The first version sent the
+email asynchronously but still looked up the account and wrote the token inside the request;
+measured, a request for an existing account took about 2 ms longer (median 6.1 ms vs 4.1 ms).
+Hidden in network noise for a single request, but separable by anyone sampling hundreds of
+times. Now the request only validates the email format, and everything else runs on another
+thread: 2.7 ms vs 2.8 ms. The cost is that a failure (database or provider) is only logged; the
+user, who already got the generic answer, can simply ask again.
+
+Single use is enforced by one conditional `UPDATE ... WHERE used_at IS NULL AND revoked_at IS
+NULL AND expires_at > now`, not by reading the row and then writing it: two simultaneous clicks
+on the same link would both pass a read-then-write check. The database serializes the two
+updates, and the second one changes no row.
+
+All four invalid cases (unknown, used, superseded, expired) get the same message: telling them
+apart does not help the user, whose way out is always a new link, and it would help someone
+probing tokens.
+
+Brevo was chosen over Resend because Resend only delivers to arbitrary recipients from a
+verified domain, and the project has none; buying one would break the free-only rule. Brevo
+sends from a Gmail sender by rewriting the address, at the cost of a higher chance of landing in
+spam. Render's free plan blocks SMTP ports, which is why the integration is HTTP. Limits and
+sources are in [deploy.md](deploy.md).
+
+Building this exposed a latent bug: `@Modifying(clearAutomatically = true)` clears the
+persistence context after the update, silently discarding pending changes of the same
+transaction (here, the new password hash). Every `@Modifying` query now also flushes first.
+
