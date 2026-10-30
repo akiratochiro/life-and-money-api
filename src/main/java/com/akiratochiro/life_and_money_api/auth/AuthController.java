@@ -52,17 +52,20 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final RefreshTokenCookie refreshTokenCookie;
     private final PasswordResetService passwordResetService;
+    private final PasswordResetQueue passwordResetQueue;
 
     public AuthController(UserService userService,
                           TokenService tokenService,
                           RefreshTokenService refreshTokenService,
                           RefreshTokenCookie refreshTokenCookie,
-                          PasswordResetService passwordResetService) {
+                          PasswordResetService passwordResetService,
+                          PasswordResetQueue passwordResetQueue) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.refreshTokenCookie = refreshTokenCookie;
         this.passwordResetService = passwordResetService;
+        this.passwordResetQueue = passwordResetQueue;
     }
 
     @PostMapping("/register")
@@ -119,7 +122,7 @@ public class AuthController {
                     + "e-mail: a resposta não pode servir para descobrir quem tem cadastro. "
                     + "Quando a conta existe, o link sai por e-mail e vale por 30 minutos.")
     public ForgotPasswordResponse forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        passwordResetService.requestReset(request.email());
+        passwordResetQueue.enqueue(request.email());
         return ForgotPasswordResponse.INSTANCE;
     }
 

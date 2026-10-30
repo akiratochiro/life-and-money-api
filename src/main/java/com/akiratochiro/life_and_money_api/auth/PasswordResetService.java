@@ -40,9 +40,9 @@ class PasswordResetService {
      * fica sabendo: a resposta da API é a mesma nos dois casos, para ela não servir de consulta
      * de quem tem cadastro.
      *
-     * <p>O e-mail sai depois do commit, em outra thread (ver {@link PasswordResetEmailListener}).
-     * Se saísse aqui, a chamada ao provedor deixaria a resposta mais lenta só para quem tem conta,
-     * e o tempo de resposta revelaria o que o corpo esconde.
+     * <p>Roda fora da requisição (ver {@link PasswordResetQueue}), e o e-mail sai depois do
+     * commit (ver {@link PasswordResetEmailListener}): nada aqui pode deixar a resposta mais lenta
+     * só para quem tem conta, senão o tempo revelaria o que o corpo da resposta esconde.
      */
     @Transactional
     void requestReset(String email) {
