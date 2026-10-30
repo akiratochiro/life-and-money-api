@@ -61,7 +61,8 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   `SecureRandom` e só o SHA-256 no banco. Queries `@Modifying` usam `flushAutomatically = true`
   junto com `clearAutomatically`, senão alterações pendentes da transação são descartadas.
 - **Nada que dependa de a conta existir pode mudar a resposta**, nem no corpo nem no tempo: o
-  `forgot-password` faz todo o trabalho fora da requisição (`PasswordResetQueue`).
+  `forgot-password` faz todo o trabalho fora da requisição (`PasswordResetQueue`), e o limite de
+  1 pedido por minuto por conta descarta o pedido em silêncio, sem `429`.
 - **Front e API na mesma origem, sem CORS.** O Worker do front faz proxy de `/api/*` para a API,
   e o proxy do Vite faz o mesmo no dev (decisão 5). Não reintroduza CORS nem uma lista de
   origens: as requisições do proxy chegam com o `Origin` do front, e uma lista as recusaria.

@@ -142,6 +142,14 @@ sends from a Gmail sender by rewriting the address, at the cost of a higher chan
 spam. Render's free plan blocks SMTP ports, which is why the integration is HTTP. Limits and
 sources are in [deploy.md](deploy.md).
 
+A second request for the same account within one minute is dropped: nothing is written, no
+email goes out, and the previous link stays valid. Without it, anyone could fire requests at
+someone else's address, filling their inbox and draining the provider's daily quota. It is not a
+`429`, for the same reason the answer never changes: a different response only for existing
+accounts would reveal them. The check reads the user's latest token in the same table, so there
+is no extra state. It does not cap requests spread across many different accounts; that would
+take a global limit.
+
 Building this exposed a latent bug: `@Modifying(clearAutomatically = true)` clears the
 persistence context after the update, silently discarding pending changes of the same
 transaction (here, the new password hash). Every `@Modifying` query now also flushes first.
