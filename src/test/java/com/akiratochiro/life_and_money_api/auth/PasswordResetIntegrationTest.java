@@ -115,11 +115,42 @@ class PasswordResetIntegrationTest extends IntegrationTest {
         register("reset.novo.pedido@test.dev");
         forgotPassword("reset.novo.pedido@test.dev");
         String first = tokenFrom(emails.awaitMessageTo("reset.novo.pedido@test.dev", 1));
+        clock.advance(Duration.ofSeconds(61));
         forgotPassword("reset.novo.pedido@test.dev");
         String second = tokenFrom(emails.awaitMessageTo("reset.novo.pedido@test.dev", 2));
 
         resetPassword(first, "senhaNova987").andExpect(status().isBadRequest());
         resetPassword(second, "senhaNova987").andExpect(status().isNoContent());
+    }
+
+    @Test
+    void aSecondRequestWithinAMinuteSendsNothingAndKeepsTheFirstLinkValid() throws Exception {
+        register("reset.intervalo@test.dev");
+        MvcResult first = forgotPassword("reset.intervalo@test.dev").andReturn();
+        String token = tokenFrom(emails.awaitMessageTo("reset.intervalo@test.dev", 1));
+
+        clock.advance(Duration.ofSeconds(59));
+        MvcResult second = forgotPassword("reset.intervalo@test.dev").andReturn();
+
+        // A resposta não muda: um 429 só para quem tem conta revelaria quem tem cadastro.
+        assertThat(second.getResponse().getStatus()).isEqualTo(first.getResponse().getStatus());
+        assertThat(second.getResponse().getContentAsString())
+                .isEqualTo(first.getResponse().getContentAsString());
+        assertThat(emails.messagesTo("reset.intervalo@test.dev")).hasSize(1);
+
+        resetPassword(token, "senhaNova987").andExpect(status().isNoContent());
+    }
+
+    @Test
+    void theIntervalIsPerAccount() throws Exception {
+        register("reset.conta.a@test.dev");
+        register("reset.conta.b@test.dev");
+
+        forgotPassword("reset.conta.a@test.dev");
+        forgotPassword("reset.conta.b@test.dev");
+
+        assertThat(emails.messagesTo("reset.conta.a@test.dev")).hasSize(1);
+        assertThat(emails.messagesTo("reset.conta.b@test.dev")).hasSize(1);
     }
 
     @Test

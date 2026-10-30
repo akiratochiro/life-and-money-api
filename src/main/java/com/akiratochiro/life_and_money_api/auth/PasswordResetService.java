@@ -1,6 +1,8 @@
 package com.akiratochiro.life_and_money_api.auth;
 
 import com.akiratochiro.life_and_money_api.user.UserService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -16,6 +18,15 @@ import java.time.Instant;
 class PasswordResetService {
 
     static final Duration VALIDITY = Duration.ofMinutes(30);
+
+    /**
+     * Intervalo mínimo entre dois pedidos da mesma conta. Sem ele, qualquer um poderia disparar
+     * pedidos em série para o e-mail de outra pessoa: a conta não corre risco (cada pedido invalida
+     * o anterior), mas a caixa da vítima enche e a cota diária do provedor acaba.
+     */
+    static final Duration MIN_INTERVAL = Duration.ofMinutes(1);
+
+    private static final Logger log = LoggerFactory.getLogger(PasswordResetService.class);
 
     private final PasswordResetTokenRepository tokens;
     private final UserService userService;
@@ -43,11 +54,21 @@ class PasswordResetService {
      * <p>Roda fora da requisição (ver {@link PasswordResetQueue}), e o e-mail sai depois do
      * commit (ver {@link PasswordResetEmailListener}): nada aqui pode deixar a resposta mais lenta
      * só para quem tem conta, senão o tempo revelaria o que o corpo da resposta esconde.
+     *
+     * <p>Um segundo pedido dentro de {@link #MIN_INTERVAL} é ignorado por inteiro: nada é gravado,
+     * nenhum e-mail sai e o link anterior continua valendo — quem pediu duas vezes seguidas só
+     * quer o e-mail que já está a caminho. Pela mesma razão de antes, isso não vira um 429.
      */
     @Transactional
     void requestReset(String email) {
         userService.findByEmail(email).ifPresent(user -> {
             Instant now = clock.instant();
+            if (tokens.existsByUserIdAndCreatedAtAfter(user.getId(), now.minus(MIN_INTERVAL))) {
+                log.info("Pedido de redefinição de senha ignorado: o usuário {} pediu outro há menos de {} s",
+                        user.getId(), MIN_INTERVAL.toSeconds());
+                return;
+            }
+
             tokens.revokeActiveOfUser(user.getId(), now);
 
             String value = OpaqueTokens.generate();

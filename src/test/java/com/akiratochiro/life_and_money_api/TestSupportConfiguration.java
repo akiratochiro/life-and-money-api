@@ -3,6 +3,8 @@ package com.akiratochiro.life_and_money_api;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
+import org.springframework.core.task.SyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 
 import java.time.ZoneId;
 
@@ -23,5 +25,14 @@ public class TestSupportConfiguration {
     @Primary
     RecordingEmailSender recordingEmailSender() {
         return new RecordingEmailSender();
+    }
+
+    /**
+     * O {@code @Async} roda na própria thread do teste. Assim um teste consegue afirmar que algo
+     * <em>não</em> aconteceu (nenhum e-mail saiu) sem esperar um tempo arbitrário e torcer.
+     */
+    @Bean
+    TaskExecutor taskExecutor() {
+        return new SyncTaskExecutor();
     }
 }

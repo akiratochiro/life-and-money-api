@@ -12,6 +12,8 @@ interface PasswordResetTokenRepository extends JpaRepository<PasswordResetToken,
 
     Optional<PasswordResetToken> findByTokenHash(String tokenHash);
 
+    boolean existsByUserIdAndCreatedAtAfter(Long userId, Instant moment);
+
     /**
      * Marca o token como usado se, e só se, ele ainda vale. Devolve 1 quando consumiu e 0 quando
      * o token não existe, já foi usado, foi invalidado ou expirou.
