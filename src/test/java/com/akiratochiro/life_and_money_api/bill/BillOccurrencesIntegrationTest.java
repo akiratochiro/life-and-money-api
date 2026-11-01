@@ -84,18 +84,93 @@ class BillOccurrencesIntegrationTest extends IntegrationTest {
 
     @Test
     void aBillDueTodayIsStillPendingLateAtNightInSaoPaulo() throws Exception {
-        // given: 23:30 de 15/11 em São Paulo, que já é 16/11 em UTC
-        clock.setTo(Instant.parse("2026-11-16T02:30:00Z"));
+        // given: 23:30 de sexta, 13/11, em São Paulo, que já é sábado 14/11 em UTC
+        clock.setTo(Instant.parse("2026-11-14T02:30:00Z"));
         Long user = register("ocorrencias.fuso@test.dev");
         Long home = createCategory(user, "Casa", "EXPENSE");
-        createBill(user, home, "Condomínio", "600.00", 15, "MONTHLY", "2026-11");
+        createBill(user, home, "Condomínio", "600.00", 13, "MONTHLY", "2026-11");
 
-        // then
-        occurrences(user, "2026-11").andExpect(jsonPath("$[0].status").value("PENDING"));
+        // then: sexta é dia útil, então o prazo é o próprio vencimento
+        occurrences(user, "2026-11")
+                .andExpect(jsonPath("$[0].payableUntil").value("2026-11-13"))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
 
         // e à meia-noite em São Paulo ela atrasa
-        clock.setTo(Instant.parse("2026-11-16T03:00:00Z"));
+        clock.setTo(Instant.parse("2026-11-14T03:00:00Z"));
         occurrences(user, "2026-11").andExpect(jsonPath("$[0].status").value("OVERDUE"));
+    }
+
+    @Test
+    void aBillDueOnAWeekendAndHolidayCanBePaidOnTheNextBusinessDay() throws Exception {
+        // given: vence no sábado 31/10/2026; domingo 1º/11 e segunda 2/11 (Finados) não são úteis
+        Long user = register("ocorrencias.dia.util@test.dev");
+        Long home = createCategory(user, "Casa", "EXPENSE");
+        createBill(user, home, "Aluguel", "1500.00", 31, "MONTHLY", "2026-10");
+
+        // when / then: no feriado ainda não atrasou, nem na terça, que é o prazo
+        clock.setTo(Instant.parse("2026-11-02T15:00:00Z"));
+        occurrences(user, "2026-10")
+                .andExpect(jsonPath("$[0].dueDate").value("2026-10-31"))
+                .andExpect(jsonPath("$[0].payableUntil").value("2026-11-03"))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
+        clock.setTo(Instant.parse("2026-11-03T15:00:00Z"));
+        occurrences(user, "2026-10").andExpect(jsonPath("$[0].status").value("PENDING"));
+
+        // na quarta, atrasou
+        clock.setTo(Instant.parse("2026-11-04T15:00:00Z"));
+        occurrences(user, "2026-10").andExpect(jsonPath("$[0].status").value("OVERDUE"));
+    }
+
+    @Test
+    void aBillDueOnABusinessDayKeepsItsDate() throws Exception {
+        clock.setTo(NOV_15_NOON);
+        Long user = register("ocorrencias.util@test.dev");
+        Long home = createCategory(user, "Casa", "EXPENSE");
+        createBill(user, home, "Aluguel", "1500.00", 10, "MONTHLY", "2026-11");
+
+        occurrences(user, "2026-11")
+                .andExpect(jsonPath("$[0].dueDate").value("2026-11-10"))
+                .andExpect(jsonPath("$[0].payableUntil").value("2026-11-10"));
+    }
+
+    @Test
+    void carnivalCountsAsANonBusinessDay() throws Exception {
+        // given: vence no sábado 6/2/2027; segunda 8 e terça 9 são Carnaval
+        clock.setTo(NOV_15_NOON);
+        Long user = register("ocorrencias.carnaval@test.dev");
+        Long home = createCategory(user, "Casa", "EXPENSE");
+        createBill(user, home, "Escola", "700.00", 6, "MONTHLY", "2027-02");
+
+        occurrences(user, "2027-02").andExpect(jsonPath("$[0].payableUntil").value("2027-02-10"));
+    }
+
+    @Test
+    void aBillDueOnDecember31CanBePaidInJanuary() throws Exception {
+        // given: 31/12/2033 é um sábado, e 1º/01/2034 é domingo e feriado
+        clock.setTo(NOV_15_NOON);
+        Long user = register("ocorrencias.virada@test.dev");
+        Long home = createCategory(user, "Casa", "EXPENSE");
+        createBill(user, home, "Aluguel", "1500.00", 31, "MONTHLY", "2033-12");
+
+        occurrences(user, "2033-12")
+                .andExpect(jsonPath("$[0].dueDate").value("2033-12-31"))
+                .andExpect(jsonPath("$[0].payableUntil").value("2034-01-02"));
+    }
+
+    @Test
+    void withTheBrasilApiDownOnlyWeekendsMoveTheDeadline() throws Exception {
+        // given: os feriados não carregam
+        holidays.failing(true);
+        clock.setTo(Instant.parse("2026-11-03T15:00:00Z"));
+        Long user = register("ocorrencias.fallback@test.dev");
+        Long home = createCategory(user, "Casa", "EXPENSE");
+        createBill(user, home, "Aluguel", "1500.00", 31, "MONTHLY", "2026-10");
+
+        // then: a tela continua funcionando; sem saber de Finados, o prazo fica na segunda 2/11
+        occurrences(user, "2026-10")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].payableUntil").value("2026-11-02"))
+                .andExpect(jsonPath("$[0].status").value("OVERDUE"));
     }
 
     @Test

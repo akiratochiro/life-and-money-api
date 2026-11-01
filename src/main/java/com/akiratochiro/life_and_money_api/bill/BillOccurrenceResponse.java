@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.bill;
 
 import com.akiratochiro.life_and_money_api.category.CategoryType;
+import com.akiratochiro.life_and_money_api.holiday.HolidayCalendar;
 import com.akiratochiro.life_and_money_api.transaction.Transaction;
 import io.swagger.v3.oas.annotations.media.Schema;
 
@@ -16,6 +17,9 @@ public record BillOccurrenceResponse(
         @Schema(requiredMode = REQUIRED, example = "2026-11", description = "Identifica a ocorrência junto com billId")
         YearMonth month,
         @Schema(requiredMode = REQUIRED) LocalDate dueDate,
+        @Schema(requiredMode = REQUIRED, description = "Último dia para pagar sem atraso: o vencimento ou, se ele cair "
+                + "num fim de semana ou feriado nacional, o próximo dia útil. É dele que sai o status OVERDUE")
+        LocalDate payableUntil,
         @Schema(requiredMode = REQUIRED) String name,
         @Schema(requiredMode = REQUIRED) Long categoryId,
         @Schema(requiredMode = REQUIRED, description = "EXPENSE é a pagar; INCOME é a receber")
@@ -30,17 +34,19 @@ public record BillOccurrenceResponse(
 
     /** {@code payment} é nulo enquanto a ocorrência não foi paga. */
     static BillOccurrenceResponse of(BillCalendar.Occurrence occurrence, CategoryType type,
-                                     Transaction payment, LocalDate today) {
+                                     Transaction payment, LocalDate today, HolidayCalendar businessDays) {
+        LocalDate payableUntil = businessDays.nextBusinessDayFrom(occurrence.dueDate());
         return new BillOccurrenceResponse(
                 occurrence.bill().getId(),
                 occurrence.month(),
                 occurrence.dueDate(),
+                payableUntil,
                 occurrence.terms().getName(),
                 occurrence.terms().getCategoryId(),
                 type,
                 occurrence.bill().getRecurrence(),
                 occurrence.terms().getAmount(),
-                BillStatus.of(payment != null, occurrence.dueDate(), today),
+                BillStatus.of(payment != null, payableUntil, today),
                 payment == null ? null : payment.getAmount(),
                 payment == null ? null : payment.getTransactionDate(),
                 payment == null ? null : payment.getId());

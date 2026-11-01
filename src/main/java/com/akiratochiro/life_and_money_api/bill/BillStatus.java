@@ -8,11 +8,14 @@ public enum BillStatus {
     PAID,
     OVERDUE;
 
-    /** Uma conta que vence hoje ainda está pendente: só atrasa no dia seguinte. */
-    public static BillStatus of(boolean paid, LocalDate dueDate, LocalDate today) {
+    /**
+     * Só atrasa no dia seguinte ao último dia para pagar, que é o próprio vencimento ou, se ele
+     * cair num fim de semana ou feriado nacional, o próximo dia útil.
+     */
+    public static BillStatus of(boolean paid, LocalDate payableUntil, LocalDate today) {
         if (paid) {
             return PAID;
         }
-        return dueDate.isBefore(today) ? OVERDUE : PENDING;
+        return payableUntil.isBefore(today) ? OVERDUE : PENDING;
     }
 }
