@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
@@ -50,7 +51,49 @@ public class BillService {
         Map<Long, BillTerms> current = activeTermsOf(userId, bills);
         return bills.stream()
                 .map(bill -> ScheduledBillResponse.from(bill, current.get(bill.getId())))
-                .sorted(Comparator.comparing(ScheduledBillResponse::name, String.CASE_INSENSITIVE_ORDER))
+                .sorted(Comparator.comparing(ScheduledBillResponse::name, BillCalendar.byName()))
+                .toList();
+    }
+
+    /** As ocorrências do mês, pagas ou não: é o que o calendário mostra. */
+    @Transactional(readOnly = true)
+    public List<BillOccurrenceResponse> occurrencesIn(Long userId, YearMonth month) {
+        return occurrencesBetween(userId, month.atDay(1), month.atEndOfMonth());
+    }
+
+    /**
+     * O que pede atenção agora: o que está atrasado (até {@value #OVERDUE_LOOKBACK_MONTHS} meses
+     * para trás) e o que vence de hoje até daqui a {@value #UPCOMING_DAYS} dias. O que já foi pago
+     * fica de fora.
+     */
+    @Transactional(readOnly = true)
+    public List<BillOccurrenceResponse> upcoming(Long userId) {
+        LocalDate today = LocalDate.now(clock);
+        LocalDate from = YearMonth.from(today).minusMonths(OVERDUE_LOOKBACK_MONTHS - 1).atDay(1);
+        return occurrencesBetween(userId, from, today.plusDays(UPCOMING_DAYS)).stream()
+                .filter(occurrence -> occurrence.status() != BillStatus.PAID)
+                .toList();
+    }
+
+    static final int UPCOMING_DAYS = 7;
+    static final int OVERDUE_LOOKBACK_MONTHS = 12;
+
+    private List<BillOccurrenceResponse> occurrencesBetween(Long userId, LocalDate from, LocalDate to) {
+        List<ScheduledBill> bills = billRepository.findAllActiveBetween(
+                userId, YearMonth.from(from).atDay(1), YearMonth.from(to).atDay(1));
+        if (bills.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<BillTerms>> terms = termsRepository
+                .findAllByUserIdAndBillIdInOrderByValidFromAsc(userId, bills.stream().map(ScheduledBill::getId).toList())
+                .stream().collect(Collectors.groupingBy(BillTerms::getBillId));
+        Map<Long, CategoryType> types = categoryService.list(userId, true).stream()
+                .collect(Collectors.toMap(Category::getId, Category::getType));
+        LocalDate today = LocalDate.now(clock);
+
+        return BillCalendar.between(bills, terms, from, to).stream()
+                .map(occurrence -> BillOccurrenceResponse.of(
+                        occurrence, types.get(occurrence.terms().getCategoryId()), today))
                 .toList();
     }
 
