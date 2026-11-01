@@ -17,6 +17,13 @@ spring:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+  cache:
+    # Feriados por ano: um ano tem sempre os mesmos feriados, então a BrasilAPI é chamada no
+    # máximo uma vez por ano consultado (até a instância reiniciar). Os 30 dias só existem para
+    # uma correção nos dados da BrasilAPI um dia chegar aqui.
+    cache-names: holidays
+    caffeine:
+      spec: maximumSize=50,expireAfterWrite=30d
   docker:
     compose:
       # Fora do desenvolvimento não existe compose.yaml ao lado do jar; dizer isso
@@ -54,3 +61,9 @@ app:
       # o perfil dev só tira o Secure, porque o localhost roda em http.
       secure: ${REFRESH_COOKIE_SECURE:true}
       same-site: ${REFRESH_COOKIE_SAME_SITE:Strict}
+  holidays:
+    # BrasilAPI: gratuita, sem chave. Timeout curto porque a tela de contas espera essa resposta;
+    # se ela demorar ou falhar, os prazos consideram só os fins de semana.
+    base-url: https://brasilapi.com.br/api/feriados/v1
+    connect-timeout: 2s
+    read-timeout: 3s

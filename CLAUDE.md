@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `dashboard`, `account`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -55,6 +55,12 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   e o status são calculados no `BillCalendar`; uma ocorrência é `(billId, mês)`, por isso toda
   recorrência tem no máximo uma por mês. Valor e data pagos moram só na transação. Excluir uma
   transação publica `TransactionDeletingEvent` antes do DELETE, e o pagamento ligado é solto.
+- **Prazo no próximo dia útil** (decisão 11): `payableUntil` pula fins de semana e feriados
+  nacionais (`holiday/HolidayCalendar`), e é dele que sai o `OVERDUE`. Carnaval e Corpus Christi
+  contam como não úteis. Os feriados vêm da BrasilAPI por um `HolidaySource` (`RestClient`, timeouts
+  de 2 s e 3 s, `@Cacheable("holidays")` por ano). **Nada pode quebrar se ela cair**: o
+  `HolidayService` devolve `available=false` e o prazo considera só fins de semana. Os testes de
+  integração usam o `FixedHolidaySource`, nunca a rede.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não
   `String.CASE_INSENSITIVE_ORDER`, que põe "Água" depois de "internet".
 - **Sessão:** access token JWT de 15 min no corpo da resposta; refresh token opaco em cookie
@@ -118,6 +124,9 @@ reconfira antes de depender deles.
 - **Brevo** (e-mail, conferido em 30/10/2026): 300 e-mails/dia, sem limite mensal; envia sem
   domínio próprio, trocando o remetente. O Render gratuito bloqueia SMTP, então o envio é pela API
   HTTP (`email/BrevoEmailSender`).
+- **BrasilAPI** (feriados, conferido em 01/11/2026): gratuita, sem chave, open source; não publica
+  limite de requisições nem SLA. O cache por ano limita as chamadas a uma por ano consultado a cada
+  vez que a instância sobe.
 - **Cloudflare Workers:** 100.000 requisições/dia (zera à meia-noite UTC) e 10 ms de CPU por
   requisição, só para requisições que executam o script. Só `/api/*` executa (o proxy); os
   estáticos são gratuitos e ilimitados. Esperar a API não conta como CPU.

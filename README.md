@@ -46,6 +46,10 @@ account only ever sees its own data.
   and a due day the month lacks falls on its last day. Marking one as paid creates the real
   transaction, possibly with a different amount; undoing it, or deleting that transaction from
   the statement, makes the month due again
+- **Business days**: a bill due on a weekend or national holiday can be paid on the next business
+  day without being overdue. National holidays come from the free [BrasilAPI](https://brasilapi.com.br),
+  cached per year, with short timeouts and a weekends-only fallback, so the API never fails because
+  of it
 - **Archiving a category ends its budget and its bills** through a domain event, so no dead line
   is left behind
 
@@ -115,6 +119,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Goals | `POST /goals` · `GET /goals` · `PUT /goals/{id}` · `DELETE /goals/{id}` |
 | Bills | `POST /bills` · `GET /bills` · `PUT /bills/{id}` · `DELETE /bills/{id}` · `GET /bills/occurrences?month=YYYY-MM` · `GET /bills/upcoming` · `POST /bills/{id}/occurrences/{month}/payment` · `DELETE /bills/{id}/occurrences/{month}/payment` |
 | Dashboard | `GET /dashboard/expenses-by-category?month=` · `GET /dashboard/monthly-totals?months=` · `GET /dashboard/budget?month=` |
+| Holidays | `GET /holidays?year=YYYY` |
 | Health | `GET /health` |
 
 ## Running locally for development

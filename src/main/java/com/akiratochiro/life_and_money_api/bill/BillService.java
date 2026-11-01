@@ -3,6 +3,8 @@ package com.akiratochiro.life_and_money_api.bill;
 import com.akiratochiro.life_and_money_api.category.Category;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
 import com.akiratochiro.life_and_money_api.category.CategoryType;
+import com.akiratochiro.life_and_money_api.holiday.HolidayCalendar;
+import com.akiratochiro.life_and_money_api.holiday.HolidayService;
 import com.akiratochiro.life_and_money_api.transaction.Transaction;
 import com.akiratochiro.life_and_money_api.transaction.TransactionService;
 import org.springframework.stereotype.Service;
@@ -27,6 +29,7 @@ public class BillService {
     private final BillPaymentRepository paymentRepository;
     private final CategoryService categoryService;
     private final TransactionService transactionService;
+    private final HolidayService holidayService;
     private final Clock clock;
 
     public BillService(ScheduledBillRepository billRepository,
@@ -34,12 +37,14 @@ public class BillService {
                        BillPaymentRepository paymentRepository,
                        CategoryService categoryService,
                        TransactionService transactionService,
+                       HolidayService holidayService,
                        Clock clock) {
         this.billRepository = billRepository;
         this.termsRepository = termsRepository;
         this.paymentRepository = paymentRepository;
         this.categoryService = categoryService;
         this.transactionService = transactionService;
+        this.holidayService = holidayService;
         this.clock = clock;
     }
 
@@ -110,14 +115,24 @@ public class BillService {
                 payment -> key(payment.getBillId(), payment.getDueMonth()),
                 payment -> transactions.get(payment.getTransactionId())));
         LocalDate today = LocalDate.now(clock);
+        HolidayCalendar businessDays = businessDaysFor(from, to);
 
         return BillCalendar.between(bills, terms, from, to).stream()
                 .map(occurrence -> BillOccurrenceResponse.of(
                         occurrence,
                         types.get(occurrence.terms().getCategoryId()),
                         paidBy.get(key(occurrence.bill().getId(), occurrence.month())),
-                        today))
+                        today,
+                        businessDays))
                 .toList();
+    }
+
+    /**
+     * Os dias úteis até o ano seguinte ao último vencimento: um vencimento em 31/12 num sábado
+     * só pode ser pago em janeiro.
+     */
+    private HolidayCalendar businessDaysFor(LocalDate from, LocalDate to) {
+        return holidayService.calendarFor(from.getYear(), to.getYear() + 1);
     }
 
     private static String key(Long billId, YearMonth month) {
@@ -154,8 +169,9 @@ public class BillService {
         paymentRepository.save(new BillPayment(userId, billId, month, transaction.getId()));
 
         CategoryType type = categoryService.getOwned(userId, terms.getCategoryId()).getType();
-        return BillOccurrenceResponse.of(
-                new BillCalendar.Occurrence(bill, terms, month, terms.dueDateIn(month)), type, transaction, today);
+        LocalDate dueDate = terms.dueDateIn(month);
+        return BillOccurrenceResponse.of(new BillCalendar.Occurrence(bill, terms, month, dueDate),
+                type, transaction, today, businessDaysFor(dueDate, dueDate));
     }
 
     /**
