@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.bill;
 
 import com.akiratochiro.life_and_money_api.category.CategoryType;
+import com.akiratochiro.life_and_money_api.transaction.Transaction;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.math.BigDecimal;
@@ -21,10 +22,15 @@ public record BillOccurrenceResponse(
         CategoryType type,
         @Schema(requiredMode = REQUIRED) BillRecurrence recurrence,
         @Schema(requiredMode = REQUIRED) BigDecimal expectedAmount,
-        @Schema(requiredMode = REQUIRED) BillStatus status
+        @Schema(requiredMode = REQUIRED) BillStatus status,
+        @Schema(description = "Valor da transação do pagamento; só quando paga") BigDecimal paidAmount,
+        @Schema(description = "Data da transação do pagamento; só quando paga") LocalDate paidOn,
+        @Schema(description = "Transação criada ao pagar; só quando paga") Long transactionId
 ) {
 
-    static BillOccurrenceResponse of(BillCalendar.Occurrence occurrence, CategoryType type, LocalDate today) {
+    /** {@code payment} é nulo enquanto a ocorrência não foi paga. */
+    static BillOccurrenceResponse of(BillCalendar.Occurrence occurrence, CategoryType type,
+                                     Transaction payment, LocalDate today) {
         return new BillOccurrenceResponse(
                 occurrence.bill().getId(),
                 occurrence.month(),
@@ -34,6 +40,9 @@ public record BillOccurrenceResponse(
                 type,
                 occurrence.bill().getRecurrence(),
                 occurrence.terms().getAmount(),
-                BillStatus.of(false, occurrence.dueDate(), today));
+                BillStatus.of(payment != null, occurrence.dueDate(), today),
+                payment == null ? null : payment.getAmount(),
+                payment == null ? null : payment.getTransactionDate(),
+                payment == null ? null : payment.getId());
     }
 }

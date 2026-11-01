@@ -3,15 +3,19 @@ package com.akiratochiro.life_and_money_api.bill;
 import com.akiratochiro.life_and_money_api.category.Category;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
 import com.akiratochiro.life_and_money_api.category.CategoryType;
+import com.akiratochiro.life_and_money_api.transaction.Transaction;
+import com.akiratochiro.life_and_money_api.transaction.TransactionService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -20,16 +24,22 @@ public class BillService {
 
     private final ScheduledBillRepository billRepository;
     private final BillTermsRepository termsRepository;
+    private final BillPaymentRepository paymentRepository;
     private final CategoryService categoryService;
+    private final TransactionService transactionService;
     private final Clock clock;
 
     public BillService(ScheduledBillRepository billRepository,
                        BillTermsRepository termsRepository,
+                       BillPaymentRepository paymentRepository,
                        CategoryService categoryService,
+                       TransactionService transactionService,
                        Clock clock) {
         this.billRepository = billRepository;
         this.termsRepository = termsRepository;
+        this.paymentRepository = paymentRepository;
         this.categoryService = categoryService;
+        this.transactionService = transactionService;
         this.clock = clock;
     }
 
@@ -89,12 +99,82 @@ public class BillService {
                 .stream().collect(Collectors.groupingBy(BillTerms::getBillId));
         Map<Long, CategoryType> types = categoryService.list(userId, true).stream()
                 .collect(Collectors.toMap(Category::getId, Category::getType));
+
+        List<Long> billIds = bills.stream().map(ScheduledBill::getId).toList();
+        List<BillPayment> payments = paymentRepository.findAllInMonths(
+                userId, billIds, YearMonth.from(from).atDay(1), YearMonth.from(to).atDay(1));
+        Map<Long, Transaction> transactions = transactionService
+                .findAllOwned(userId, payments.stream().map(BillPayment::getTransactionId).toList())
+                .stream().collect(Collectors.toMap(Transaction::getId, Function.identity()));
+        Map<String, Transaction> paidBy = payments.stream().collect(Collectors.toMap(
+                payment -> key(payment.getBillId(), payment.getDueMonth()),
+                payment -> transactions.get(payment.getTransactionId())));
         LocalDate today = LocalDate.now(clock);
 
         return BillCalendar.between(bills, terms, from, to).stream()
                 .map(occurrence -> BillOccurrenceResponse.of(
-                        occurrence, types.get(occurrence.terms().getCategoryId()), today))
+                        occurrence,
+                        types.get(occurrence.terms().getCategoryId()),
+                        paidBy.get(key(occurrence.bill().getId(), occurrence.month())),
+                        today))
                 .toList();
+    }
+
+    private static String key(Long billId, YearMonth month) {
+        return billId + "@" + month;
+    }
+
+    /**
+     * Marca a ocorrência como paga criando a transação real, na categoria e com o nome da conta.
+     * O valor e a data são os informados, ou o valor previsto e hoje.
+     *
+     * <p>A checagem de "já pago" dá uma mensagem clara; quem garante de fato é a restrição única
+     * {@code (bill_id, due_month)}: dois cliques simultâneos passam pela checagem, mas o segundo
+     * INSERT falha, e a transação que ele tinha criado é desfeita junto.
+     */
+    @Transactional
+    public BillOccurrenceResponse pay(Long userId, Long billId, YearMonth month, PayBillRequest request) {
+        ScheduledBill bill = findOwned(userId, billId);
+        BillTerms terms = bill.occursIn(month)
+                ? BillCalendar.termsIn(termsRepository.findAllByUserIdAndBillIdInOrderByValidFromAsc(userId, List.of(billId)), month)
+                : null;
+        if (terms == null) {
+            throw new BillOccurrenceNotFoundException();
+        }
+        if (paymentRepository.existsByUserIdAndBillIdAndDueMonth(userId, billId, month.atDay(1))) {
+            throw new BillAlreadyPaidException();
+        }
+
+        LocalDate today = LocalDate.now(clock);
+        BigDecimal amount = request != null && request.amount() != null ? request.amount() : terms.getAmount();
+        LocalDate paidOn = request != null && request.paidOn() != null ? request.paidOn() : today;
+
+        Transaction transaction = transactionService.create(
+                userId, terms.getCategoryId(), null, amount, paidOn, terms.getName());
+        paymentRepository.save(new BillPayment(userId, billId, month, transaction.getId()));
+
+        CategoryType type = categoryService.getOwned(userId, terms.getCategoryId()).getType();
+        return BillOccurrenceResponse.of(
+                new BillCalendar.Occurrence(bill, terms, month, terms.dueDateIn(month)), type, transaction, today);
+    }
+
+    /**
+     * Desfaz o pagamento apagando a transação. Quem apaga o pagamento é o
+     * {@link DeletedTransactionListener}, o mesmo caminho de excluir a transação pelo extrato:
+     * assim só existe um jeito de um pagamento sumir.
+     */
+    @Transactional
+    public void undoPayment(Long userId, Long billId, YearMonth month) {
+        findOwned(userId, billId);
+        BillPayment payment = paymentRepository.findByUserIdAndBillIdAndDueMonth(userId, billId, month.atDay(1))
+                .orElseThrow(BillPaymentNotFoundException::new);
+        transactionService.delete(userId, payment.getTransactionId());
+    }
+
+    /** Solta o pagamento ligado à transação, se houver: a ocorrência volta a não paga. */
+    @Transactional
+    public void releasePayment(Long userId, Long transactionId) {
+        paymentRepository.deleteByTransactionId(userId, transactionId);
     }
 
     /**
@@ -145,18 +225,37 @@ public class BillService {
         endOrDelete(findOwned(userId, billId));
     }
 
-    /** Enquanto não há pagamentos, uma conta é só uma previsão, e é apagada de vez. */
+    /**
+     * Uma conta sem nenhum pagamento é só uma previsão, e é apagada de vez. Com pagamentos, ela
+     * vira histórico: é encerrada no mês anterior ao atual, ou no último mês pago, se for depois.
+     * Os meses passados continuam aparecendo, pagos ou atrasados, como estavam.
+     */
     private void endOrDelete(ScheduledBill bill) {
-        termsRepository.deleteAllByBillId(bill.getId());
-        billRepository.deleteById(bill.getId());
+        Optional<YearMonth> lastPaid = paymentRepository.findLastPaidMonth(bill.getId()).map(YearMonth::from);
+        if (lastPaid.isEmpty()) {
+            termsRepository.deleteAllByBillId(bill.getId());
+            billRepository.deleteById(bill.getId());
+            return;
+        }
+
+        YearMonth lastMonth = max(YearMonth.now(clock).minusMonths(1), lastPaid.get());
+        if (bill.getEndMonth() == null || bill.getEndMonth().isAfter(lastMonth)) {
+            bill.endAt(lastMonth);
+        }
     }
 
     private void changeEnd(ScheduledBill bill, YearMonth endMonth) {
         if (bill.getRecurrence() == BillRecurrence.ONCE) {
             return;
         }
-        if (endMonth != null && endMonth.isBefore(bill.getStartMonth())) {
-            throw new InvalidBillPeriodException();
+        if (endMonth != null) {
+            if (endMonth.isBefore(bill.getStartMonth())) {
+                throw new InvalidBillPeriodException();
+            }
+            Optional<LocalDate> lastPaid = paymentRepository.findLastPaidMonth(bill.getId());
+            if (lastPaid.isPresent() && YearMonth.from(lastPaid.get()).isAfter(endMonth)) {
+                throw new BillPaidAfterEndException();
+            }
         }
         bill.endAt(endMonth);
     }
@@ -166,6 +265,8 @@ public class BillService {
     public List<BillExport> listAll(Long userId) {
         Map<Long, List<BillTerms>> terms = termsRepository.findAllByUserIdOrderByBillIdAscValidFromAsc(userId)
                 .stream().collect(Collectors.groupingBy(BillTerms::getBillId));
+        Map<Long, List<BillPayment>> payments = paymentRepository.findAllByUserIdOrderByBillIdAscDueMonthAsc(userId)
+                .stream().collect(Collectors.groupingBy(BillPayment::getBillId));
 
         return billRepository.findAllByUserIdOrderByStartMonthAscIdAsc(userId).stream()
                 .map(bill -> new BillExport(
@@ -173,13 +274,18 @@ public class BillService {
                         bill.getRecurrence(),
                         bill.getStartMonth(),
                         bill.getEndMonth(),
-                        terms.getOrDefault(bill.getId(), List.of()).stream().map(BillExport.Terms::from).toList()))
+                        terms.getOrDefault(bill.getId(), List.of()).stream().map(BillExport.Terms::from).toList(),
+                        payments.getOrDefault(bill.getId(), List.of()).stream().map(BillExport.Payment::from).toList()))
                 .toList();
     }
 
-    /** Para a exclusão da conta: apaga tudo o que esta feature guarda do usuário. */
+    /**
+     * Para a exclusão da conta. Os pagamentos apontam para transações, então esta feature precisa
+     * ser apagada antes das transações.
+     */
     @Transactional
     public void deleteAllOf(Long userId) {
+        paymentRepository.deleteAllByUserId(userId);
         termsRepository.deleteAllByUserId(userId);
         billRepository.deleteAllByUserId(userId);
     }

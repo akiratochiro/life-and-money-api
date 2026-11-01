@@ -8,13 +8,14 @@ import java.util.List;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 
-/** Uma conta no export, com todo o histórico de termos. */
+/** Uma conta no export: todo o histórico de termos e os meses pagos, com a transação de cada um. */
 public record BillExport(
         @Schema(requiredMode = REQUIRED) Long id,
         @Schema(requiredMode = REQUIRED) BillRecurrence recurrence,
         @Schema(requiredMode = REQUIRED, example = "2026-11") YearMonth startMonth,
         @Schema(example = "2027-10") YearMonth endMonth,
-        @Schema(requiredMode = REQUIRED) List<Terms> terms
+        @Schema(requiredMode = REQUIRED) List<Terms> terms,
+        @Schema(requiredMode = REQUIRED) List<Payment> payments
 ) {
 
     public record Terms(
@@ -28,6 +29,15 @@ public record BillExport(
         static Terms from(BillTerms terms) {
             return new Terms(terms.getName(), terms.getCategoryId(), terms.getAmount(),
                     terms.getDueDay(), terms.getValidFrom(), terms.getValidTo());
+        }
+    }
+
+    public record Payment(
+            @Schema(requiredMode = REQUIRED, example = "2026-11") YearMonth month,
+            @Schema(requiredMode = REQUIRED) Long transactionId
+    ) {
+        static Payment from(BillPayment payment) {
+            return new Payment(payment.getDueMonth(), payment.getTransactionId());
         }
     }
 }

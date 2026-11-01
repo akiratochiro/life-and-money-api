@@ -4,12 +4,14 @@ import com.akiratochiro.life_and_money_api.category.Category;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
 import com.akiratochiro.life_and_money_api.category.CategoryType;
 import com.akiratochiro.life_and_money_api.shared.GoalNotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.YearMonth;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -20,11 +22,14 @@ public class TransactionService {
     private final TransactionRepository transactionRepository;
     private final CategoryService categoryService;
     private final GoalOwnershipChecker goalOwnershipChecker;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public TransactionService(TransactionRepository transactionRepository, CategoryService categoryService, GoalOwnershipChecker goalOwnershipChecker) {
+    public TransactionService(TransactionRepository transactionRepository, CategoryService categoryService,
+                              GoalOwnershipChecker goalOwnershipChecker, ApplicationEventPublisher eventPublisher) {
         this.transactionRepository = transactionRepository;
         this.categoryService = categoryService;
         this.goalOwnershipChecker = goalOwnershipChecker;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -73,10 +78,24 @@ public class TransactionService {
         return transactionRepository.findAllByUserIdAndTransactionDateBetweenOrderByTransactionDateDescIdDesc(userId, month.atDay(1), month.atEndOfMonth());
     }
 
+    /**
+     * O evento sai antes do DELETE e roda na mesma transação: quem aponta para esta transação
+     * (o pagamento de uma conta) solta a referência primeiro, e se isso falhar nada é apagado.
+     */
     @Transactional
     public void delete(Long userId, Long transactionId){
         Transaction transaction = findOwned(userId, transactionId);
+        eventPublisher.publishEvent(new TransactionDeletingEvent(userId, transactionId));
         transactionRepository.delete(transaction);
+    }
+
+    /** As transações do usuário com esses ids; ids de outro usuário são ignorados. */
+    @Transactional(readOnly = true)
+    public List<Transaction> findAllOwned(Long userId, Collection<Long> transactionIds) {
+        if (transactionIds.isEmpty()) {
+            return List.of();
+        }
+        return transactionRepository.findAllByUserIdAndIdIn(userId, transactionIds);
     }
 
     @Transactional(readOnly = true)
