@@ -1,7 +1,7 @@
 # CLAUDE.md — Life and Money API
 
-API REST de finanças pessoais: categorias, transações, orçamento mensal com vigência, dashboards
-e metas de poupança. O front fica em `../life-and-money-web`.
+API REST de finanças pessoais: categorias, transações, orçamento mensal com vigência, dashboards,
+metas de poupança e contas a pagar e a receber. O front fica em `../life-and-money-web`.
 
 Leia [README.md](README.md) para a visão geral e [docs/decisions.md](docs/decisions.md) para o
 porquê das escolhas antes de mudar algo estrutural. O deploy está em [docs/deploy.md](docs/deploy.md).
@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `dashboard`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `dashboard`, `account`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -50,6 +50,13 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 - **Dinheiro em `BigDecimal` / `NUMERIC`**, nunca `double`.
 - **Orçamento com vigência:** mudar um orçamento fecha o item atual e abre outro; meses passados
   nunca são reescritos (decisão 2).
+- **Contas previstas** (`bill`, decisões 9 e 10): a conta é a identidade, os termos (nome,
+  categoria, valor, dia) têm vigência como o orçamento, e só o pagamento é gravado. As ocorrências
+  e o status são calculados no `BillCalendar`; uma ocorrência é `(billId, mês)`, por isso toda
+  recorrência tem no máximo uma por mês. Valor e data pagos moram só na transação. Excluir uma
+  transação publica `TransactionDeletingEvent` antes do DELETE, e o pagamento ligado é solto.
+- **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não
+  `String.CASE_INSENSITIVE_ORDER`, que põe "Água" depois de "internet".
 - **Sessão:** access token JWT de 15 min no corpo da resposta; refresh token opaco em cookie
   `HttpOnly`, `SameSite=Strict`, com path `/api/auth`, salvo como hash SHA-256 e rotacionado a
   cada uso. `POST /auth/refresh` exige o header `X-Refresh-Request`, segunda barreira contra
@@ -70,7 +77,8 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   trata 401 como sessão encerrada.
 - **E-mail atrás de `EmailSender`** (pacote `email`): `brevo` em produção, `log` no dev (só loga o
   link). `app.email.provider` não tem padrão, de propósito. Nos testes de integração, o
-  `RecordingEmailSender` guarda as mensagens e o `MutableClock` controla o tempo.
+  `RecordingEmailSender` guarda as mensagens e o `MutableClock` controla o tempo
+  (`setTo(Instant)` para fixar um dia do calendário).
 - **Tokens opacos** (refresh e redefinição de senha) usam `OpaqueTokens`: 32 bytes do
   `SecureRandom` e só o SHA-256 no banco. Queries `@Modifying` usam `flushAutomatically = true`
   junto com `clearAutomatically`, senão alterações pendentes da transação são descartadas.

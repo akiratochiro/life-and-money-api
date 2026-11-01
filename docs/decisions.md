@@ -234,3 +234,66 @@ stolen access token cannot be used to guess the password here. The password trav
 of a `DELETE`, which HTTP allows without defining its meaning; it was checked end to end through
 the Vite proxy and the Worker.
 
+
+## 9. Scheduled bills: computed occurrences, effective-dated terms, only payments stored
+
+**Context.** Transactions record what already happened. Users also need what is expected: rent,
+the power bill, a client who pays every month, the yearly car tax. Each of these repeats, its
+amount can change over time, and each month it is either paid, pending or overdue.
+
+**Decision.** Three tables:
+
+- `scheduled_bills` is the identity: recurrence (`ONCE`, `MONTHLY`, `YEARLY`), first month and an
+  optional last month. Recurrence and first month never change; changing them means ending the
+  bill and creating another one.
+- `scheduled_bill_terms` holds what can change (name, category, expected amount, due day), with
+  effective dating exactly like the budget (decision 2): an edit closes the current terms at the
+  previous month and opens new ones.
+- `bill_payments` links one occurrence, `(bill_id, due_month)`, to the real transaction created
+  when it was paid.
+
+Occurrences are not stored. They are computed on every read by `BillCalendar`, from the bill and
+the terms valid in each month. Status is computed too: paid if there is a payment, overdue if the
+due date is before today (São Paulo time), pending otherwise. Whether a bill is a payable or a
+receivable comes from its category type, so the two can never disagree.
+
+**Consequences.** The options considered were:
+
+- generating one row per occurrence: simple queries and natural per-month exceptions ("skip
+  March"), but it needs a job to generate the rows (unreliable on a free instance that sleeps), a
+  horizon for bills without an end, and every edit would have to rewrite the future rows;
+- computing on demand and storing only payments (chosen): no job, edits naturally apply from
+  then on, and the data mirrors the facts. The cost is that expansion runs in Java, which is fine
+  for the one or two months a request covers, and that per-month exceptions would need another
+  table if they are ever wanted.
+
+Every recurrence has at most one occurrence per month, which is what makes `(bill_id, month)` a
+natural key. A weekly bill would break that, so it was left out. A due day the month does not have
+falls on its last day: the 31st is due on April 30 and on February 28 (29 in leap years), instead
+of spilling into the next month.
+
+The paid amount and date live only in the transaction, not in the payment, so editing the
+transaction in the statement also corrects the payment. A unique constraint on
+`(bill_id, due_month)` stops a month from being paid twice, even with two simultaneous clicks. A
+bill with payments is ended rather than deleted, so its history stays. Saving categories are not
+accepted for now, since a saving transaction may need a goal.
+
+## 10. Deleting a payment's transaction undoes the payment, through an event
+
+**Context.** `bill` depends on `transaction` to create the payment's transaction. Deleting that
+transaction from the statement would hit the `bill_payments` foreign key, and `transaction` cannot
+call `bill` without a cycle.
+
+**Decision.** `TransactionService.delete` publishes `TransactionDeletingEvent` before the `DELETE`,
+and `bill` listens and removes the payment. The listener is synchronous and runs in the same
+database transaction, like the budget's listener (decision 3). Undoing a payment in the bills
+screen takes the same path: it deletes the transaction, and the listener removes the payment.
+
+**Consequences.** The occurrence goes back to pending, or overdue, whichever screen the user
+deletes it from, and there is a single way for a payment to disappear. The alternative, refusing
+the deletion with a `409` and asking the user to undo it in the bills screen, was simpler but
+pushed the package boundary onto the user.
+
+The event is named for the moment before the deletion, not after it, because listeners must act
+while the row still exists. The cost is that `transaction` now publishes an event any future
+feature can hang logic on, and a listener that throws prevents the deletion.
