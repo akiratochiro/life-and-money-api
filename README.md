@@ -41,7 +41,13 @@ account only ever sees its own data.
   and budget tracking with `OK` / `WARNING` / `EXCEEDED` for expenses and
   `IN_PROGRESS` / `REACHED` for savings
 - **Savings goals** linked to saving transactions, with automatic monthly contribution calculation
-- **Archiving a category ends its budget** through a domain event, so no dead line is left behind
+- **Scheduled bills**, payable and receivable, one-off, monthly or yearly, with a due-date calendar:
+  occurrences are computed (never stored), each month keeps the amount it expected at the time,
+  and a due day the month lacks falls on its last day. Marking one as paid creates the real
+  transaction, possibly with a different amount; undoing it, or deleting that transaction from
+  the statement, makes the month due again
+- **Archiving a category ends its budget and its bills** through a domain event, so no dead line
+  is left behind
 
 ## Tech stack
 
@@ -107,6 +113,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Transactions | `POST /transactions` · `GET /transactions?month=YYYY-MM` · `PUT /transactions/{id}` · `DELETE /transactions/{id}` |
 | Budgets | `GET /budgets?month=YYYY-MM` · `PUT /budgets/{categoryId}` · `DELETE /budgets/{categoryId}` |
 | Goals | `POST /goals` · `GET /goals` · `PUT /goals/{id}` · `DELETE /goals/{id}` |
+| Bills | `POST /bills` · `GET /bills` · `PUT /bills/{id}` · `DELETE /bills/{id}` · `GET /bills/occurrences?month=YYYY-MM` · `GET /bills/upcoming` · `POST /bills/{id}/occurrences/{month}/payment` · `DELETE /bills/{id}/occurrences/{month}/payment` |
 | Dashboard | `GET /dashboard/expenses-by-category?month=` · `GET /dashboard/monthly-totals?months=` · `GET /dashboard/budget?month=` |
 | Health | `GET /health` |
 
@@ -148,5 +155,6 @@ sequence of clicks. The full step by step, including which free tiers were chose
 ## Roadmap
 
 - Withdrawals from savings goals
+- Weekly bills, and skipping or changing a single month of a bill
 - Error responses documented in the OpenAPI spec, so the front-end can type `ProblemDetail`
   from the generated schema instead of declaring it by hand

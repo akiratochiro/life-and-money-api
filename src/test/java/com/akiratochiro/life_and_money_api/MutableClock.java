@@ -22,6 +22,11 @@ public class MutableClock extends Clock {
         fixed = instant().plus(amount);
     }
 
+    /** Para o relógio num instante exato, para testes que dependem do dia do calendário. */
+    public void setTo(Instant instant) {
+        fixed = instant;
+    }
+
     public void reset() {
         fixed = null;
     }

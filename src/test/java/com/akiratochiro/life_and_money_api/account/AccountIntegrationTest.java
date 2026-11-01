@@ -94,16 +94,19 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
                         org.hamcrest.Matchers.matchesPattern("attachment; filename=\"life-and-money-\\d{4}-\\d{2}-\\d{2}\\.json\"")))
                 .andExpect(jsonPath("$.profile.email").value("export.ana@test.dev"))
-                .andExpect(jsonPath("$.transactions.length()").value(2))
+                .andExpect(jsonPath("$.transactions.length()").value(3))
                 .andExpect(jsonPath("$.budgetItems.length()").value(1))
                 .andExpect(jsonPath("$.goals.length()").value(1))
                 .andExpect(jsonPath("$.goals[0].saved").value(300.00))
+                .andExpect(jsonPath("$.bills.length()").value(1))
+                .andExpect(jsonPath("$.bills[0].terms[0].name").value("Aluguel " + ana))
+                .andExpect(jsonPath("$.bills[0].payments.length()").value(1))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
         assertThat(body)
-                .contains("Mercado " + ana, "Reserva " + ana)
-                .doesNotContain("export.bia@test.dev", "Mercado " + bia, "Reserva " + bia)
+                .contains("Mercado " + ana, "Reserva " + ana, "Aluguel " + ana)
+                .doesNotContain("export.bia@test.dev", "Mercado " + bia, "Reserva " + bia, "Aluguel " + bia)
                 .as("credenciais não são dados da pessoa")
                 .doesNotContainIgnoringCase("passwordHash")
                 .doesNotContainIgnoringCase("tokenHash");
@@ -118,7 +121,8 @@ class AccountIntegrationTest extends IntegrationTest {
                 """, String.class);
         assertThat(tables).as("as tabelas com dados de usuário")
                 .contains("categories", "transactions", "budget_items", "savings_goals",
-                        "refresh_tokens", "password_reset_tokens");
+                        "refresh_tokens", "password_reset_tokens",
+                        "scheduled_bills", "scheduled_bill_terms", "bill_payments");
 
         Map<String, Long> rows = new LinkedHashMap<>();
         rows.put("users", jdbc.queryForObject("select count(*) from users where id = ?", Long.class, userId));
@@ -150,6 +154,17 @@ class AccountIntegrationTest extends IntegrationTest {
                                 {"mode": "AMOUNT", "limitValue": 800}
                                 """))
                 .andExpect(status().isOk());
+        Long bill = idOf(mockMvc.perform(post("/bills").with(asUser(userId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"categoryId": %d, "name": "Aluguel %d", "amount": 1500, "dueDay": 5,
+                                 "recurrence": "MONTHLY", "startMonth": "%s"}
+                                """.formatted(expense, userId, java.time.YearMonth.now())))
+                .andExpect(status().isCreated())
+                .andReturn());
+        mockMvc.perform(post("/bills/{id}/occurrences/{month}/payment", bill, java.time.YearMonth.now())
+                        .with(asUser(userId)))
+                .andExpect(status().isCreated());
 
         login(email).andExpect(status().isOk());
         mockMvc.perform(post("/auth/forgot-password")
