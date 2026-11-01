@@ -297,3 +297,43 @@ pushed the package boundary onto the user.
 The event is named for the moment before the deletion, not after it, because listeners must act
 while the row still exists. The cost is that `transaction` now publishes an event any future
 feature can hang logic on, and a listener that throws prevents the deletion.
+
+## 11. A bill is only overdue after the next business day, with holidays from the BrasilAPI
+
+**Context.** A bill due on a Sunday was shown as overdue on that same Sunday, while the bank rule
+for boletos lets it be paid on the next business day without penalty. Showing "pay by Monday"
+next to an "overdue" badge would contradict itself, and the home screen would count as overdue
+bills that can still be paid on time.
+
+**Decision.** Each occurrence gets `payableUntil`: the due date, or the next business day when the
+due date falls on a weekend or a national holiday. `OVERDUE` is computed from it, in the API, so
+every screen agrees. National holidays come from the BrasilAPI (`/api/feriados/v1/{year}`),
+through a `HolidaySource` called with `RestClient` and short timeouts (2 s to connect, 3 s to
+read), and cached per year with Spring Cache and Caffeine. `GET /holidays?year=` exposes them for
+the calendar.
+
+The BrasilAPI also returns Carnival and Corpus Christi as national. Legally they are optional days
+off, not holidays, but banks do not open on Carnival, so both count as non-business days.
+
+**Consequences.** The options considered were:
+
+- changing only the display: no external dependency in the business rule, but the screen would
+  say "overdue" and "pay by Monday" at the same time;
+- computing the deadline in the API (chosen): one rule, one place. The cost is that the status now
+  depends on an external service.
+
+That dependency is contained. The holidays of a year never change, since the BrasilAPI computes
+them (fixed dates plus the Easter-based ones, from 1900 to 2199), so each year is fetched at most
+once per instance lifetime. A failure is not cached, so the next request tries again. If the
+BrasilAPI is down and the year is not cached, the deadline falls back to weekends only and
+`/holidays` answers `available: false`: the screen never breaks, and in the worst case a bill
+whose deadline would cross a holiday shows as overdue one day early. The deadline needs the
+following year too, because a bill due on Saturday, December 31 can only be paid in January.
+
+The rule applies to every bill, although only boletos follow it: Pix and direct debit work on
+holidays. A per-bill switch would fix that if it ever matters. State and municipal holidays are
+not covered by the BrasilAPI and are not considered.
+
+The integration tests never call the BrasilAPI: a fixed `HolidaySource` replaces it. The client is
+tested with `MockRestServiceServer`, and the timeout against a slow local `HttpServer`, since the
+mock replaces the HTTP layer and cannot be slow.
