@@ -102,6 +102,11 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 - **Passos pequenos, um commit por passo**, em Conventional Commits (`feat:`, `fix:`, `test:`,
   `docs:`, `build:`, `ci:`, `chore:`, `refactor:`). As mensagens do histórico estão em
   português; mantenha o padrão.
+- **Commits direto na `main`, sem branches nem pull requests.** Cada passo vira um commit na
+  `main`, e o push é feito ao fim da tarefa, depois de os testes e o build passarem na máquina.
+  Push na `main` vai para o ar (a API no Render, o front no Cloudflare Workers) e a CI só roda
+  depois, então nada quebrado pode ser enviado. Quando a mudança atravessa os dois repositórios,
+  o push da API vem primeiro, e o do front só depois que o deploy da API terminar.
 - **Toda regra de negócio nova precisa de teste**: unitário para a regra e, quando tocar o banco,
   integração com Testcontainers (Postgres real, não H2). Se o usuário pode violar a regra,
   teste também o status e a mensagem do erro.
