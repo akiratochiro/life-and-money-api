@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.account;
 
 import com.akiratochiro.life_and_money_api.auth.AccountCredentials;
+import com.akiratochiro.life_and_money_api.bill.BillService;
 import com.akiratochiro.life_and_money_api.budget.BudgetItemResponse;
 import com.akiratochiro.life_and_money_api.budget.BudgetService;
 import com.akiratochiro.life_and_money_api.category.CategoryResponse;
@@ -32,6 +33,7 @@ class AccountService {
     private final TransactionService transactionService;
     private final BudgetService budgetService;
     private final GoalService goalService;
+    private final BillService billService;
     private final AccountCredentials accountCredentials;
     private final RateLimiter rateLimiter;
     private final Clock clock;
@@ -41,6 +43,7 @@ class AccountService {
                    TransactionService transactionService,
                    BudgetService budgetService,
                    GoalService goalService,
+                   BillService billService,
                    AccountCredentials accountCredentials,
                    RateLimiter rateLimiter,
                    Clock clock) {
@@ -49,6 +52,7 @@ class AccountService {
         this.transactionService = transactionService;
         this.budgetService = budgetService;
         this.goalService = goalService;
+        this.billService = billService;
         this.accountCredentials = accountCredentials;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
@@ -63,13 +67,15 @@ class AccountService {
                 categoryService.list(userId, true).stream().map(CategoryResponse::from).toList(),
                 transactionService.listAll(userId).stream().map(TransactionResponse::from).toList(),
                 budgetService.listAll(userId).stream().map(BudgetItemResponse::from).toList(),
-                goalService.list(userId));
+                goalService.list(userId),
+                billService.listAll(userId));
     }
 
     /**
      * Apaga a conta e todos os dados dela, numa transação só: ou tudo some, ou nada muda.
      *
-     * <p>A ordem segue as chaves estrangeiras, de quem aponta para quem é apontado: transações
+     * <p>A ordem segue as chaves estrangeiras, de quem aponta para quem é apontado: pagamentos de
+     * contas apontam para transações, transações
      * apontam para categorias e metas, o orçamento aponta para categorias, e tudo aponta para o
      * usuário. As chaves não têm cascata de propósito: se uma feature nova esquecer de entrar
      * aqui, a exclusão do usuário falha com erro de integridade, em vez de deixar dados para trás.
@@ -81,6 +87,7 @@ class AccountService {
         rateLimiter.consume(RateLimit.ACCOUNT_DELETION_PER_USER, String.valueOf(userId));
         userService.verifyPassword(userId, password);
 
+        billService.deleteAllOf(userId);
         transactionService.deleteAllOf(userId);
         budgetService.deleteAllOf(userId);
         goalService.deleteAllOf(userId);

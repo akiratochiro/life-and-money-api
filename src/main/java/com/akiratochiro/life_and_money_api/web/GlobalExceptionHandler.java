@@ -2,6 +2,10 @@ package com.akiratochiro.life_and_money_api.web;
 
 import com.akiratochiro.life_and_money_api.auth.InvalidPasswordResetTokenException;
 import com.akiratochiro.life_and_money_api.auth.InvalidRefreshTokenException;
+import com.akiratochiro.life_and_money_api.bill.BillEndedException;
+import com.akiratochiro.life_and_money_api.bill.BillNotFoundException;
+import com.akiratochiro.life_and_money_api.bill.InvalidBillPeriodException;
+import com.akiratochiro.life_and_money_api.bill.SavingCategoryBillException;
 import com.akiratochiro.life_and_money_api.budget.BudgetItemNotFoundException;
 import com.akiratochiro.life_and_money_api.budget.IncomeCategoryBudgetException;
 import com.akiratochiro.life_and_money_api.category.CategoryAlreadyExistsException;
@@ -116,6 +120,11 @@ public class GlobalExceptionHandler {
         return notFound("Orçamento não encontrado", ex);
     }
 
+    @ExceptionHandler(BillNotFoundException.class)
+    public ProblemDetail handleBillNotFound(BillNotFoundException ex) {
+        return notFound("Conta não encontrada", ex);
+    }
+
     // 409
 
     @ExceptionHandler(EmailAlreadyInUseException.class)
@@ -131,6 +140,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(CategoryArchivedException.class)
     public ProblemDetail handleCategoryArchived(CategoryArchivedException ex) {
         return conflict("Categoria arquivada", ex);
+    }
+
+    @ExceptionHandler(BillEndedException.class)
+    public ProblemDetail handleBillEnded(BillEndedException ex) {
+        return conflict("Conta encerrada", ex);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
@@ -159,6 +173,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidGoalDeadlineException.class)
     public ProblemDetail handleInvalidGoalDeadline(InvalidGoalDeadlineException ex) {
         return unprocessable("Prazo inválido", ex);
+    }
+
+    @ExceptionHandler(SavingCategoryBillException.class)
+    public ProblemDetail handleSavingCategoryBill(SavingCategoryBillException ex) {
+        return unprocessable("Categoria inválida para conta", ex);
+    }
+
+    @ExceptionHandler(InvalidBillPeriodException.class)
+    public ProblemDetail handleInvalidBillPeriod(InvalidBillPeriodException ex) {
+        return unprocessable("Período inválido", ex);
     }
 
     // 429
