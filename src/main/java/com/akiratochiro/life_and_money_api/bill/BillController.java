@@ -24,25 +24,27 @@ public class BillController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "createBill", summary = "Cria uma conta a pagar ou a receber")
     public ScheduledBillResponse create(@AuthenticationPrincipal Jwt jwt,
                                         @Valid @RequestBody CreateBillRequest request) {
         return billService.create(CurrentUser.id(jwt), request);
     }
 
     @GetMapping
+    @Operation(operationId = "listBills", summary = "As contas, com os termos em vigor")
     public List<ScheduledBillResponse> list(@AuthenticationPrincipal Jwt jwt) {
         return billService.list(CurrentUser.id(jwt));
     }
 
     @GetMapping("/occurrences")
-    @Operation(summary = "Ocorrências do mês", description = "Calculadas a partir das contas, com o status de cada uma")
+    @Operation(operationId = "billOccurrences", summary = "Ocorrências do mês", description = "Calculadas a partir das contas, com o status de cada uma")
     public List<BillOccurrenceResponse> occurrences(@AuthenticationPrincipal Jwt jwt,
                                                     @RequestParam YearMonth month) {
         return billService.occurrencesIn(CurrentUser.id(jwt), month);
     }
 
     @GetMapping("/upcoming")
-    @Operation(summary = "O que pede atenção",
+    @Operation(operationId = "upcomingBills", summary = "O que pede atenção",
             description = "Atrasadas dos últimos 12 meses e o que vence de hoje até daqui a 7 dias, sem as pagas")
     public List<BillOccurrenceResponse> upcoming(@AuthenticationPrincipal Jwt jwt) {
         return billService.upcoming(CurrentUser.id(jwt));
@@ -50,7 +52,7 @@ public class BillController {
 
     @PostMapping("/{id}/occurrences/{month}/payment")
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Marca a ocorrência como paga",
+    @Operation(operationId = "payBill", summary = "Marca a ocorrência como paga",
             description = "Cria a transação real. Sem corpo, usa o valor previsto e a data de hoje")
     public BillOccurrenceResponse pay(@AuthenticationPrincipal Jwt jwt,
                                       @PathVariable Long id,
@@ -61,7 +63,7 @@ public class BillController {
 
     @DeleteMapping("/{id}/occurrences/{month}/payment")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Desfaz o pagamento", description = "Apaga a transação criada ao pagar")
+    @Operation(operationId = "undoBillPayment", summary = "Desfaz o pagamento", description = "Apaga a transação criada ao pagar")
     public void undoPayment(@AuthenticationPrincipal Jwt jwt,
                             @PathVariable Long id,
                             @Parameter(example = "2026-11") @PathVariable YearMonth month) {
@@ -70,6 +72,7 @@ public class BillController {
 
     /** Vale do mês atual em diante: os meses passados continuam com o valor da época. */
     @PutMapping("/{id}")
+    @Operation(operationId = "updateBill", summary = "Muda a conta do mês atual em diante")
     public ScheduledBillResponse update(@AuthenticationPrincipal Jwt jwt,
                                         @PathVariable Long id,
                                         @Valid @RequestBody UpdateBillRequest request) {
@@ -79,6 +82,7 @@ public class BillController {
     /** Apaga a conta se ela nunca foi paga; se foi, encerra, e os meses passados ficam. */
     @DeleteMapping("/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(operationId = "removeBill", summary = "Apaga a conta, ou a encerra se já teve pagamento")
     public void remove(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         billService.remove(CurrentUser.id(jwt), id);
     }
