@@ -226,6 +226,34 @@ public class BillService {
     }
 
     /**
+     * Uma categoria arquivada não recebe mais transações, então as contas dela não poderiam mais
+     * ser pagas. Elas são encerradas no mês anterior ao atual (ou no último mês pago, se for
+     * depois), e os meses passados continuam no calendário. Uma conta que só começaria depois
+     * disso não tem mês a preservar e é apagada.
+     *
+     * <p>Diferente do {@link #remove}: aqui ninguém pediu para apagar nada, então uma conta sem
+     * pagamentos não perde os meses que já passaram.
+     */
+    @Transactional
+    public void endBillsOfCategory(Long userId, Long categoryId) {
+        YearMonth previousMonth = YearMonth.now(clock).minusMonths(1);
+        for (BillTerms terms : termsRepository.findAllByUserIdAndCategoryIdAndValidToIsNull(userId, categoryId)) {
+            ScheduledBill bill = findOwned(userId, terms.getBillId());
+            YearMonth lastMonth = paymentRepository.findLastPaidMonth(bill.getId())
+                    .map(YearMonth::from)
+                    .map(lastPaid -> max(previousMonth, lastPaid))
+                    .orElse(previousMonth);
+
+            if (lastMonth.isBefore(bill.getStartMonth())) {
+                termsRepository.deleteAllByBillId(bill.getId());
+                billRepository.deleteById(bill.getId());
+            } else if (bill.getEndMonth() == null || bill.getEndMonth().isAfter(lastMonth)) {
+                bill.endAt(lastMonth);
+            }
+        }
+    }
+
+    /**
      * Uma conta sem nenhum pagamento é só uma previsão, e é apagada de vez. Com pagamentos, ela
      * vira histórico: é encerrada no mês anterior ao atual, ou no último mês pago, se for depois.
      * Os meses passados continuam aparecendo, pagos ou atrasados, como estavam.
