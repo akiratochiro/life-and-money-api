@@ -16,6 +16,12 @@ public class Category {
     @Enumerated(EnumType.STRING)
     private CategoryType type;
 
+    @Enumerated(EnumType.STRING)
+    private CategoryColor color;
+
+    @Enumerated(EnumType.STRING)
+    private CategoryIcon icon;
+
     private boolean archived;
     private Instant createdAt;
 
@@ -23,9 +29,16 @@ public class Category {
     protected Category(){}
 
     public Category(Long userId, String name, CategoryType type) {
+        this(userId, name, type, null, null);
+    }
+
+    /** Sem cor ou sem ícone, vale o padrão do tipo (ver {@link #defaultColor} e {@link #defaultIcon}). */
+    public Category(Long userId, String name, CategoryType type, CategoryColor color, CategoryIcon icon) {
         this.userId = userId;
         this.name = normalizeName(name);
         this.type = type;
+        this.color = color != null ? color : defaultColor(type);
+        this.icon = icon != null ? icon : defaultIcon(type);
         this.archived = false;
         this.createdAt = Instant.now();
     }
@@ -52,6 +65,38 @@ public class Category {
 
     public Instant getCreatedAt(){
         return createdAt;
+    }
+
+    public CategoryColor getColor() {
+        return color;
+    }
+
+    public CategoryIcon getIcon() {
+        return icon;
+    }
+
+    public void changeColor(CategoryColor newColor) {
+        this.color = newColor;
+    }
+
+    public void changeIcon(CategoryIcon newIcon) {
+        this.icon = newIcon;
+    }
+
+    static CategoryColor defaultColor(CategoryType type) {
+        return switch (type) {
+            case INCOME -> CategoryColor.MINT;
+            case EXPENSE -> CategoryColor.CORAL;
+            case SAVING -> CategoryColor.PINK;
+        };
+    }
+
+    static CategoryIcon defaultIcon(CategoryType type) {
+        return switch (type) {
+            case INCOME -> CategoryIcon.COIN;
+            case EXPENSE -> CategoryIcon.OTHER;
+            case SAVING -> CategoryIcon.PIGGY_BANK;
+        };
     }
 
     public void rename(String newName) {

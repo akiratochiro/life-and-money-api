@@ -20,13 +20,32 @@ public class CategoryService {
 
     @Transactional
     public Category create(Long userId, String name, CategoryType type) {
+        return create(userId, name, type, null, null);
+    }
+
+    /** Sem cor ou sem ícone, vale o padrão do tipo. */
+    @Transactional
+    public Category create(Long userId, String name, CategoryType type, CategoryColor color, CategoryIcon icon) {
         String normalizedName = Category.normalizeName(name);
 
         if (categoryRepository.existsByUserIdAndTypeAndNameIgnoreCaseAndArchivedFalse(userId, type, normalizedName)) {
             throw new CategoryAlreadyExistsException(normalizedName);
         }
 
-        return categoryRepository.save(new Category(userId, normalizedName, type));
+        return categoryRepository.save(new Category(userId, normalizedName, type, color, icon));
+    }
+
+    /** Edição parcial: o que vier nulo fica como está. */
+    @Transactional
+    public Category update(Long userId, Long categoryId, String newName, CategoryColor color, CategoryIcon icon) {
+        Category category = newName != null ? rename(userId, categoryId, newName) : findOwned(userId, categoryId);
+        if (color != null) {
+            category.changeColor(color);
+        }
+        if (icon != null) {
+            category.changeIcon(icon);
+        }
+        return category;
     }
 
     @Transactional

@@ -31,12 +31,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.InvalidFormatException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Traduz as exceções de regra de negócio em respostas RFC 9457 ({@link ProblemDetail}).
@@ -63,6 +67,33 @@ public class GlobalExceptionHandler {
                 .forEach(error -> errors.putIfAbsent(error.getField(), error.getDefaultMessage()));
         problem.setProperty("errors", errors);
 
+        return problem;
+    }
+
+    /**
+     * Um corpo que o Jackson não consegue ler. O caso que importa é um valor fora de uma lista
+     * fechada (cor ou ícone de categoria, tipo): o campo vai marcado, como num erro de validação.
+     * Sem isso, a resposta seria a padrão do Spring, em inglês e sem dizer qual campo.
+     */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail handleUnreadable(HttpMessageNotReadableException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Não foi possível ler os dados enviados.");
+        problem.setTitle("Dados inválidos");
+
+        if (ex.getCause() instanceof InvalidFormatException invalid) {
+            String field = invalid.getPath().stream()
+                    .map(JacksonException.Reference::getPropertyName)
+                    .filter(Objects::nonNull)
+                    .reduce((first, last) -> last)
+                    .orElse(null);
+            if (field != null) {
+                boolean closedList = invalid.getTargetType() != null && invalid.getTargetType().isEnum();
+                problem.setDetail("Confira os campos destacados e tente de novo.");
+                problem.setProperty("errors", Map.of(field,
+                        closedList ? "Escolha uma das opções disponíveis." : "Valor inválido."));
+            }
+        }
         return problem;
     }
 

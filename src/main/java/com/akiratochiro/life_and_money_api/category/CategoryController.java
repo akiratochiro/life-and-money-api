@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.category;
 
 import com.akiratochiro.life_and_money_api.shared.CurrentUser;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -23,7 +24,8 @@ public class CategoryController {
     @ResponseStatus(HttpStatus.CREATED)
     public CategoryResponse create(@AuthenticationPrincipal Jwt jwt,
                                    @Valid @RequestBody CreateCategoryRequest request) {
-        Category category = categoryService.create(CurrentUser.id(jwt), request.name(), request.type());
+        Category category = categoryService.create(
+                CurrentUser.id(jwt), request.name(), request.type(), request.color(), request.icon());
         return CategoryResponse.from(category);
     }
 
@@ -35,11 +37,14 @@ public class CategoryController {
                 .toList();
     }
 
+    /** Renomeia, troca a cor ou o ícone; o que não vier no corpo fica como está. */
     @PatchMapping("/{id}")
-    public CategoryResponse rename(@AuthenticationPrincipal Jwt jwt,
+    @Operation(operationId = "updateCategory", summary = "Edita nome, cor ou ícone da categoria")
+    public CategoryResponse update(@AuthenticationPrincipal Jwt jwt,
                                    @PathVariable Long id,
-                                   @Valid @RequestBody RenameCategoryRequest request) {
-        Category category = categoryService.rename(CurrentUser.id(jwt), id, request.name());
+                                   @Valid @RequestBody UpdateCategoryRequest request) {
+        Category category = categoryService.update(
+                CurrentUser.id(jwt), id, request.name(), request.color(), request.icon());
         return CategoryResponse.from(category);
     }
 

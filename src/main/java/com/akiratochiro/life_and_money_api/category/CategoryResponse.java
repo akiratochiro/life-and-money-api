@@ -10,6 +10,8 @@ public record CategoryResponse(
         @Schema(requiredMode = REQUIRED) Long id,
         @Schema(requiredMode = REQUIRED) String name,
         @Schema(requiredMode = REQUIRED) CategoryType type,
+        @Schema(requiredMode = REQUIRED) CategoryColor color,
+        @Schema(requiredMode = REQUIRED) CategoryIcon icon,
         @Schema(requiredMode = REQUIRED) boolean archived,
         @Schema(requiredMode = REQUIRED) Instant createdAt
 ) {
@@ -18,6 +20,8 @@ public record CategoryResponse(
                 category.getId(),
                 category.getName(),
                 category.getType(),
+                category.getColor(),
+                category.getIcon(),
                 category.isArchived(),
                 category.getCreatedAt()
         );
