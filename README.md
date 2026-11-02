@@ -33,7 +33,7 @@ account only ever sees its own data.
   SHA-256 hash; the request answers the same whether or not the account exists, in body and in
   time, and a reset ends every session of the user
 - **Categories** (income, expense, saving), archived instead of deleted to preserve history,
-  with a default set created on registration
+  with a default set created on registration, each with a color and an icon from closed lists
 - **Transactions** with exact decimal arithmetic (`BigDecimal` / `NUMERIC`)
 - **Monthly budgets** by fixed amount or percentage of realized income, with **effective dating**:
   changing a budget never rewrites past months
@@ -113,7 +113,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 |---|---|
 | Auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` · `POST /auth/forgot-password` · `POST /auth/reset-password` |
 | User | `GET /users/me` · `GET /users/me/export` · `DELETE /users/me` |
-| Categories | `POST /categories` · `GET /categories` · `PATCH /categories/{id}` · `POST /categories/{id}/archive` |
+| Categories | `POST /categories` · `GET /categories` · `PATCH /categories/{id}` (name, color, icon) · `POST /categories/{id}/archive` |
 | Transactions | `POST /transactions` · `GET /transactions?month=YYYY-MM` · `PUT /transactions/{id}` · `DELETE /transactions/{id}` |
 | Budgets | `GET /budgets?month=YYYY-MM` · `PUT /budgets/{categoryId}` · `DELETE /budgets/{categoryId}` |
 | Goals | `POST /goals` · `GET /goals` · `PUT /goals/{id}` · `DELETE /goals/{id}` |

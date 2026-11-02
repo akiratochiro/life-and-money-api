@@ -337,3 +337,29 @@ not covered by the BrasilAPI and are not considered.
 The integration tests never call the BrasilAPI: a fixed `HolidaySource` replaces it. The client is
 tested with `MockRestServiceServer`, and the timeout against a slow local `HttpServer`, since the
 mock replaces the HTTP layer and cannot be slow.
+
+## 12. Category color and icon from closed lists, stored by name
+
+**Context.** Categories needed a color and an icon, picked by the user, that the front uses in the
+transaction chips, the statement and the expenses donut.
+
+**Decision.** `CategoryColor` (12 tones) and `CategoryIcon` (20 icons) are enums. The API stores
+the name, not a hex value or an SVG, and the front owns how each one looks. Both lists are repeated
+as `CHECK` constraints in the database. Migration V10 backfills existing categories: the default
+ones by name (Moradia gets `PEACH`/`HOME`), the rest by type. Color and icon are optional when
+creating (the type default applies), and `PATCH /categories/{id}` became a partial update of name,
+color and icon.
+
+A body that cannot be read, such as a value outside a closed list, now answers RFC 9457 in
+Portuguese with the field marked, instead of Spring's default English response.
+
+**Consequences.** Storing names keeps the visual identity free to change: a new shade of "mint" is
+a front change, not a data migration, and no category can hold a color the app cannot draw. The
+OpenAPI publishes the lists, so the generated TypeScript forces the front to define every value; a
+new icon in the API breaks the front's build until it gets a drawing, which is the point.
+
+Being optional on create, with a server default, kept the deployed front working during the window
+between the API deploy and the front deploy, the same kind of window that once broke the bills
+screen. The cost is a second way to create a category (with and without color), which the
+integration tests cover. The backfill is tested against a schema migrated to V9 with old-format
+rows, since an empty test database would not exercise it.

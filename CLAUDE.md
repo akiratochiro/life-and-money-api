@@ -61,6 +61,12 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   de 2 s e 3 s, `@Cacheable("holidays")` por ano). **Nada pode quebrar se ela cair**: o
   `HolidayService` devolve `available=false` e o prazo considera só fins de semana. Os testes de
   integração usam o `FixedHolidaySource`, nunca a rede.
+- **Cor e ícone de categoria** (decisão 12): enums `CategoryColor` e `CategoryIcon`, guardados por
+  nome, repetidos em `CHECK` no banco. Valor novo entra no enum, numa migration nova que muda o
+  `CHECK`, e precisa de desenho no front (o tipo gerado obriga). Campo novo num contrato que o front
+  em produção já usa entra **opcional, com padrão no servidor**, para a janela entre os deploys.
+- **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
+  `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não
   `String.CASE_INSENSITIVE_ORDER`, que põe "Água" depois de "internet".
 - **Sessão:** access token JWT de 15 min no corpo da resposta; refresh token opaco em cookie
