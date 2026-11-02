@@ -12,7 +12,7 @@ class HolidayCalendarTest {
     private static final HolidayCalendar NOVEMBER_2026 = new HolidayCalendar(List.of(
             new Holiday(LocalDate.of(2026, 11, 2), "Finados"),
             new Holiday(LocalDate.of(2026, 11, 15), "Proclamação da República"),
-            new Holiday(LocalDate.of(2026, 11, 20), "Dia da consciência negra")), true);
+            new Holiday(LocalDate.of(2026, 11, 20), "Dia da consciência negra")));
 
     @Test
     void aWeekdayThatIsNotAHolidayIsItsOwnBusinessDay() {
@@ -49,16 +49,15 @@ class HolidayCalendarTest {
         // 31/12/2033 é um sábado; 1º/01/2034 é domingo e feriado: o prazo vai para 2 de janeiro
         HolidayCalendar calendar = new HolidayCalendar(List.of(
                 new Holiday(LocalDate.of(2033, 12, 25), "Natal"),
-                new Holiday(LocalDate.of(2034, 1, 1), "Confraternização mundial")), true);
+                new Holiday(LocalDate.of(2034, 1, 1), "Confraternização mundial")));
 
         assertThat(calendar.nextBusinessDayFrom(LocalDate.of(2033, 12, 31))).isEqualTo(LocalDate.of(2034, 1, 2));
     }
 
     @Test
     void withoutHolidaysOnlyWeekendsCount() {
-        HolidayCalendar fallback = HolidayCalendar.weekendsOnly();
+        HolidayCalendar fallback = new HolidayCalendar(List.of());
 
-        assertThat(fallback.isComplete()).isFalse();
         assertThat(fallback.nextBusinessDayFrom(LocalDate.of(2026, 11, 2))).as("Finados vira um dia útil")
                 .isEqualTo(LocalDate.of(2026, 11, 2));
         assertThat(fallback.nextBusinessDayFrom(LocalDate.of(2026, 11, 14))).isEqualTo(LocalDate.of(2026, 11, 16));

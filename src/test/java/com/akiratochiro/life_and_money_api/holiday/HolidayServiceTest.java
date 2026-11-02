@@ -54,13 +54,13 @@ class HolidayServiceTest {
     }
 
     @Test
-    void aCalendarIsIncompleteIfAnyYearFailed() {
+    void aYearThatFailedCountsOnlyWeekendsAndTheOthersKeepTheirHolidays() {
         when(source.fetch(2026)).thenReturn(List.of(FINADOS));
         when(source.fetch(2027)).thenThrow(new HolidaySourceException("fora do ar", null));
 
         HolidayCalendar calendar = service.calendarFor(2026, 2027);
 
-        assertThat(calendar.isComplete()).isFalse();
         assertThat(calendar.isBusinessDay(FINADOS.date())).as("o ano que carregou continua valendo").isFalse();
+        assertThat(calendar.isBusinessDay(LocalDate.of(2027, 11, 2))).as("Finados de 2027, sem a BrasilAPI").isTrue();
     }
 }

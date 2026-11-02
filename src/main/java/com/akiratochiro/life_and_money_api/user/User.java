@@ -52,10 +52,6 @@ public class User{
         this.passwordHash = Objects.requireNonNull(newPasswordHash, "passwordHash is required");
     }
 
-    public void changeEmail(String newEmail){
-        this.email = normalizeEmail(newEmail);
-    }
-
     static String normalizeEmail(String email){
         Objects.requireNonNull(email, "email is required");
         return email.toLowerCase(Locale.ROOT).strip();

@@ -50,10 +50,6 @@ class RefreshToken {
         return userId;
     }
 
-    Instant getRevokedAt() {
-        return revokedAt;
-    }
-
     boolean isRevoked() {
         return revokedAt != null;
     }

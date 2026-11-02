@@ -41,12 +41,9 @@ public class HolidayService {
     /** O calendário de dias úteis dos anos {@code firstYear} a {@code lastYear}, inclusive. */
     public HolidayCalendar calendarFor(int firstYear, int lastYear) {
         List<Holiday> holidays = new ArrayList<>();
-        boolean complete = true;
         for (int year = firstYear; year <= lastYear; year++) {
-            HolidaysResponse response = holidaysOf(year);
-            holidays.addAll(response.holidays());
-            complete &= response.available();
+            holidays.addAll(holidaysOf(year).holidays());
         }
-        return new HolidayCalendar(holidays, complete);
+        return new HolidayCalendar(holidays);
     }
 }
