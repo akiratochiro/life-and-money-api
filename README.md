@@ -93,11 +93,11 @@ Generate a secret for `JWT_SECRET` with:
 openssl rand -base64 32
 ```
 
-The API runs at `http://localhost:8080/api`.
+The API runs at `http://localhost:8081/api`.
 
 ## API documentation
 
-Interactive documentation (Swagger UI): `http://localhost:8080/api/swagger-ui/index.html`
+Interactive documentation (Swagger UI): `http://localhost:8081/api/swagger-ui/index.html`
 
 1. Call `POST /auth/register`, then `POST /auth/login`
 2. Copy the `accessToken`, click **Authorize** and paste it
