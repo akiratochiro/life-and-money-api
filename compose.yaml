@@ -30,4 +30,4 @@ services:
       APP_FRONT_URL: http://localhost:5173
       PROXY_SHARED_SECRET: compose-sem-worker
     ports:
-      - '8081:8080'
+      - '8081:8081'

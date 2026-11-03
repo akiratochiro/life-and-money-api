@@ -1,6 +1,6 @@
 server:
   # Em produção o serviço de hospedagem escolhe a porta e a informa em PORT.
-  port: ${PORT:8080}
+  port: ${PORT:8081}
   # O Spring não lê X-Forwarded-*: o X-Forwarded-For é falsificável atrás do Render, e o IP do
   # cliente é resolvido pelo ClientIpResolver, que sabe em quem confiar.
   forward-headers-strategy: none

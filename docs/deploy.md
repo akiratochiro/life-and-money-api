@@ -229,7 +229,7 @@ passar, o front.
 | `SPRING_DATASOURCE_PASSWORD` | API | sim | — |
 | `REFRESH_COOKIE_SECURE` | API | não | `true` |
 | `REFRESH_COOKIE_SAME_SITE` | API | não | `Strict` |
-| `PORT` | API | não (o Render define) | `8080` |
+| `PORT` | API | não (o Render define) | `8081` |
 | `APP_EMAIL_PROVIDER` | API | sim | — (`brevo` no `render.yaml`, `log` no dev) |
 | `BREVO_API_KEY` | API | sim, com `brevo` | — |
 | `EMAIL_FROM` | API | sim, com `brevo` | — |

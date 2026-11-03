@@ -21,7 +21,7 @@ RUN groupadd --system app && useradd --system --gid app app
 COPY --from=build /app/target/*.jar app.jar
 USER app
 
-EXPOSE 8080
+EXPOSE 8081
 
 # MaxRAMPercentage faz a JVM dimensionar o heap pelo limite do container, e não pela memória
 # da máquina: sem isso, numa instância de 512 MB ela reservaria heap demais e seria morta.
