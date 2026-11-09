@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/akiratochiro/life-and-money-api/actions/workflows/ci.yml/badge.svg)](https://github.com/akiratochiro/life-and-money-api/actions/workflows/ci.yml)
 
+![Life and Money on the phone: the month's balance, upcoming bills and expenses by category](https://life-and-money.akira-tochiro23.workers.dev/og-image.png)
+
 A personal finance REST API built with Java and Spring Boot: custom categories, transactions,
 monthly budgets with effective dating, dashboards and savings goals.
 
@@ -11,7 +13,7 @@ architecture, explicit design decisions and automated tests.
 ## Live demo
 
 - **App:** https://life-and-money.akira-tochiro23.workers.dev
-- **API docs (Swagger UI):** https://life-and-money-api.onrender.com/swagger-ui/index.html
+- **API docs (Swagger UI):** https://life-and-money-api.onrender.com/api/swagger-ui/index.html
 - **Web front-end repository:** [life-and-money-web](https://github.com/akiratochiro/life-and-money-web)
 
 > The API runs on a free instance that sleeps after 15 minutes of inactivity.
