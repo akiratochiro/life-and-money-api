@@ -14,8 +14,18 @@ class RegistrationEmailsTest {
         EmailMessage email = RegistrationEmails.confirmation("ana@exemplo.dev", "Ana Souza", LINK);
 
         assertThat(email.to()).isEqualTo("ana@exemplo.dev");
-        assertThat(email.html()).contains("Falta um passo, Ana!", "href=\"" + LINK + "\"");
-        assertThat(email.text()).contains("Falta um passo, Ana!", LINK, "24 horas");
+        assertThat(email.html()).contains("Olá, Ana.", "href=\"" + LINK + "\"");
+        assertThat(email.text()).contains("Olá, Ana.", LINK, "24 horas", "não é spam");
+    }
+
+    @Test
+    void itLooksLikeAnOrdinaryEmail() {
+        EmailMessage email = RegistrationEmails.confirmation("ana@exemplo.dev", "Ana Souza", LINK);
+
+        // Sem estilos, tabelas, imagens nem botão: só parágrafos e o link por extenso.
+        assertThat(email.html()).doesNotContain("style=", "<table", "<img", "background");
+        assertThat(email.html()).contains(">" + LINK + "</a>");
+        assertThat(email.text()).endsWith("Life and Money\n");
     }
 
     @Test

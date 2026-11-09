@@ -34,7 +34,7 @@ class RegistrationIntegrationTest extends IntegrationTest {
 
         EmailMessage email = emails.awaitMessageTo("cadastro.fluxo@test.dev", 1);
         assertThat(email.subject()).isEqualTo(RegistrationEmails.CONFIRMATION_SUBJECT);
-        assertThat(email.text()).contains("Falta um passo, Ana!");
+        assertThat(email.text()).contains("Olá, Ana.");
 
         // Antes de confirmar, não há conta para entrar.
         login("cadastro.fluxo@test.dev", "senha12345").andExpect(status().isUnauthorized());

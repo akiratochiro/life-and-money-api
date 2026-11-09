@@ -103,7 +103,9 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 - **Senha errada de quem já está logado é 403** (`IncorrectPasswordException`), nunca 401: o front
   trata 401 como sessão encerrada.
 - **E-mail atrás de `EmailSender`** (pacote `email`): `brevo` em produção, `log` no dev (só loga o
-  link). `app.email.provider` não tem padrão, de propósito. Nos testes de integração, o
+  link). O conteúdo é montado pelo `auth/PlainEmail`: parágrafos, link por extenso e assinatura, sem
+  cores, tabelas nem botão (e-mail com cara de marketing pesa contra no filtro de spam). HTML e texto
+  saem do mesmo conteúdo, escapado em UTF-8. `app.email.provider` não tem padrão, de propósito. Nos testes de integração, o
   `RecordingEmailSender` guarda as mensagens e o `MutableClock` controla o tempo
   (`setTo(Instant)` para fixar um dia do calendário).
 - **Tokens opacos** (refresh e redefinição de senha) usam `OpaqueTokens`: 32 bytes do

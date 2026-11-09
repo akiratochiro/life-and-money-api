@@ -14,8 +14,8 @@ class PasswordResetEmailTest {
         EmailMessage email = PasswordResetEmail.compose("ana@exemplo.dev", "Ana Souza", LINK);
 
         assertThat(email.to()).isEqualTo("ana@exemplo.dev");
-        assertThat(email.html()).contains("Vamos criar uma senha nova, Ana?", "href=\"" + LINK + "\"");
-        assertThat(email.text()).contains("Vamos criar uma senha nova, Ana?", LINK);
+        assertThat(email.html()).contains("Olá, Ana.", "href=\"" + LINK + "\"");
+        assertThat(email.text()).contains("Olá, Ana.", LINK);
     }
 
     @Test
