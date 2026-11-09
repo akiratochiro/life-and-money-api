@@ -149,8 +149,10 @@ public class AuthController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     @Operation(summary = "Cria uma senha nova com o token do e-mail",
             description = "O token vale uma vez só. A senha segue as regras do cadastro, e todas as "
-                    + "sessões do usuário são encerradas: depois disso é preciso entrar de novo.")
-    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+                    + "sessões do usuário são encerradas: depois disso é preciso entrar de novo. "
+                    + "São 10 tentativas a cada 15 minutos por IP.")
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request, HttpServletRequest httpRequest) {
+        rateLimiter.consume(RateLimit.RESET_PASSWORD_PER_IP, clientIpResolver.resolve(httpRequest));
         passwordResetService.resetPassword(request.token(), request.newPassword());
     }
 

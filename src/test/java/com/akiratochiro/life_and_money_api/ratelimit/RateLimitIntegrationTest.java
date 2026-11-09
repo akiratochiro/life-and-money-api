@@ -128,6 +128,17 @@ class RateLimitIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void resetPasswordIsLimitedPerIp() throws Exception {
+        for (int attempt = 1; attempt <= 10; attempt++) {
+            resetPassword(fromCloudflare("203.0.113.95", post("/auth/reset-password")), "token-inventado-" + attempt)
+                    .andExpect(status().isBadRequest());
+        }
+
+        resetPassword(fromCloudflare("203.0.113.95", post("/auth/reset-password")), "token-inventado-11")
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
     void refreshIsLimitedPerIp() throws Exception {
         for (int attempt = 1; attempt <= 30; attempt++) {
             mockMvc.perform(fromCloudflare("203.0.113.100", post("/auth/refresh")).header("X-Refresh-Request", "1"))
@@ -171,6 +182,12 @@ class RateLimitIntegrationTest extends IntegrationTest {
         return mockMvc.perform(request.contentType(MediaType.APPLICATION_JSON).content("""
                 {"email": "%s"}
                 """.formatted(email)));
+    }
+
+    private ResultActions resetPassword(MockHttpServletRequestBuilder request, String token) throws Exception {
+        return mockMvc.perform(request.contentType(MediaType.APPLICATION_JSON).content("""
+                {"token": "%s", "newPassword": "senhaNova987"}
+                """.formatted(token)));
     }
 
     /** Chamada direta ao Render: a Cloudflare da frente dele escreve o CF-Connecting-IP. */

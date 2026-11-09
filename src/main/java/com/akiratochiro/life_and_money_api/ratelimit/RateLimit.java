@@ -20,6 +20,13 @@ public enum RateLimit {
     /** Soma-se ao intervalo de 1 minuto por conta do próprio fluxo de redefinição. */
     FORGOT_PASSWORD_PER_IP(5, Duration.ofMinutes(15)),
 
+    /**
+     * O token tem 256 bits, então adivinhar não é o risco; o limite fecha a porta para quem
+     * martelaria o endpoint, como nos outros de autenticação. Folgado para um erro de digitação na
+     * senha nova não travar quem tem o link certo.
+     */
+    RESET_PASSWORD_PER_IP(10, Duration.ofMinutes(15)),
+
     /** O app renova a cada ~14 minutos; várias abas e várias pessoas no mesmo IP somam. */
     REFRESH_PER_IP(30, Duration.ofMinutes(1)),
 
