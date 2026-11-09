@@ -55,6 +55,7 @@ public class AuthController {
     private final TokenService tokenService;
     private final RefreshTokenService refreshTokenService;
     private final RefreshTokenCookie refreshTokenCookie;
+    private final LoginDeviceCookie loginDeviceCookie;
     private final PasswordResetService passwordResetService;
     private final PasswordResetQueue passwordResetQueue;
     private final RateLimiter rateLimiter;
@@ -64,6 +65,7 @@ public class AuthController {
                           TokenService tokenService,
                           RefreshTokenService refreshTokenService,
                           RefreshTokenCookie refreshTokenCookie,
+                          LoginDeviceCookie loginDeviceCookie,
                           PasswordResetService passwordResetService,
                           PasswordResetQueue passwordResetQueue,
                           RateLimiter rateLimiter,
@@ -72,6 +74,7 @@ public class AuthController {
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
         this.refreshTokenCookie = refreshTokenCookie;
+        this.loginDeviceCookie = loginDeviceCookie;
         this.passwordResetService = passwordResetService;
         this.passwordResetQueue = passwordResetQueue;
         this.rateLimiter = rateLimiter;
@@ -90,14 +93,24 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "Abre uma sessão",
-            description = "Devolve o access token no corpo e o refresh token num cookie HttpOnly.")
+            description = "Devolve o access token no corpo e o refresh token num cookie HttpOnly. Também "
+                    + "grava o cookie loginDevice: o navegador que já entrou na conta tem um limite de "
+                    + "tentativas próprio, que senhas erradas vindas de outros lugares não esgotam.")
     public TokenResponse login(@Valid @RequestBody LoginRequest request,
+                               @CookieValue(name = LoginDeviceCookie.NAME, required = false) String deviceCookie,
                                HttpServletRequest httpRequest,
                                HttpServletResponse response) {
         rateLimiter.consume(RateLimit.LOGIN_PER_IP, clientIpResolver.resolve(httpRequest));
-        rateLimiter.consume(RateLimit.LOGIN_PER_EMAIL, request.email());
+
+        // Navegador que já entrou nesta conta: limite próprio, que um atacante não consegue esvaziar.
+        // Os outros dividem o limite do e-mail. Ver LoginDeviceCookie.
+        loginDeviceCookie.deviceIdFor(deviceCookie, request.email()).ifPresentOrElse(
+                deviceId -> rateLimiter.consume(RateLimit.LOGIN_PER_DEVICE, deviceId),
+                () -> rateLimiter.consume(RateLimit.LOGIN_PER_EMAIL, request.email()));
+
         User user = userService.authenticate(request.email(), request.password());
         issueRefreshCookie(response, refreshTokenService.issue(user.getId()));
+        response.addHeader(HttpHeaders.SET_COOKIE, loginDeviceCookie.issue(deviceCookie, user.getEmail()).toString());
         return tokenService.generateToken(user);
     }
 

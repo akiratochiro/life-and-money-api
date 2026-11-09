@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.ratelimit;
 
 import com.akiratochiro.life_and_money_api.IntegrationTest;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpHeaders;
@@ -10,6 +11,8 @@ import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.time.Duration;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -65,6 +68,67 @@ class RateLimitIntegrationTest extends IntegrationTest {
         login(fromWorker("203.0.113.40"), "alvo@test.dev")
                 .andExpect(status().isTooManyRequests())
                 .andExpect(jsonPath("$.detail").value("Muitas tentativas em pouco tempo. Tente de novo em 2 minutos."));
+    }
+
+    @Test
+    void someoneLockingTheEmailDoesNotLockOutABrowserThatAlreadySignedIn() throws Exception {
+        registerFrom("203.0.113.120", "dono@test.dev");
+        Cookie device = deviceCookieFrom(loginAs(fromCloudflare("203.0.113.121"), "dono@test.dev", "senha12345"));
+
+        // O atacante esgota o limite do e-mail, de vários IPs (o login do dono, ainda sem o cookie,
+        // já tinha gastado uma das 10 tentativas).
+        for (int attempt = 1; attempt <= 9; attempt++) {
+            login(fromWorker("203.0.113." + (130 + attempt)), "dono@test.dev").andExpect(status().isUnauthorized());
+        }
+        login(fromWorker("203.0.113.141"), "dono@test.dev").andExpect(status().isTooManyRequests());
+
+        // O dono, no navegador em que já tinha entrado, continua entrando.
+        loginAs(fromCloudflare("203.0.113.121").cookie(device), "dono@test.dev", "senha12345")
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void theDeviceCookieOfOneAccountDoesNotExemptAnother() throws Exception {
+        registerFrom("203.0.113.150", "conta.a@test.dev");
+        registerFrom("203.0.113.150", "conta.b@test.dev");
+        Cookie deviceOfA = deviceCookieFrom(loginAs(fromCloudflare("203.0.113.151"), "conta.a@test.dev", "senha12345"));
+
+        for (int attempt = 1; attempt <= 10; attempt++) {
+            login(fromWorker("203.0.113." + (160 + attempt)), "conta.b@test.dev");
+        }
+
+        loginAs(fromCloudflare("203.0.113.151").cookie(deviceOfA), "conta.b@test.dev", "senha12345")
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void aTamperedDeviceCookieCountsAsNoCookie() throws Exception {
+        registerFrom("203.0.113.170", "adulterado@test.dev");
+        Cookie device = deviceCookieFrom(loginAs(fromCloudflare("203.0.113.171"), "adulterado@test.dev", "senha12345"));
+        String value = device.getValue();
+        Cookie tampered = new Cookie("loginDevice", "outroAparelho" + value.substring(value.indexOf('.')));
+
+        for (int attempt = 1; attempt <= 10; attempt++) {
+            login(fromWorker("203.0.113." + (180 + attempt)), "adulterado@test.dev");
+        }
+
+        loginAs(fromCloudflare("203.0.113.171").cookie(tampered), "adulterado@test.dev", "senha12345")
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void aBrowserWithTheDeviceCookieHasItsOwnLimit() throws Exception {
+        // Quem rouba o cookie de aparelho não ganha tentativas sem fim: ele tem um balde só dele.
+        registerFrom("203.0.113.190", "aparelho@test.dev");
+        Cookie device = deviceCookieFrom(loginAs(fromCloudflare("203.0.113.191"), "aparelho@test.dev", "senha12345"));
+
+        for (int attempt = 1; attempt <= 10; attempt++) {
+            login(fromWorker("203.0.113." + (200 + attempt)).cookie(device), "aparelho@test.dev")
+                    .andExpect(status().isUnauthorized());
+        }
+
+        login(fromWorker("203.0.113.211").cookie(device), "aparelho@test.dev")
+                .andExpect(status().isTooManyRequests());
     }
 
     @Test
@@ -167,9 +231,24 @@ class RateLimitIntegrationTest extends IntegrationTest {
     }
 
     private ResultActions login(MockHttpServletRequestBuilder request, String email) throws Exception {
+        return loginAs(request, email, "senhaErrada1");
+    }
+
+    private ResultActions loginAs(MockHttpServletRequestBuilder request, String email, String password) throws Exception {
         return mockMvc.perform(request.contentType(MediaType.APPLICATION_JSON).content("""
-                {"email": "%s", "password": "senhaErrada1"}
-                """.formatted(email)));
+                {"email": "%s", "password": "%s"}
+                """.formatted(email, password)));
+    }
+
+    /** Cadastro de um IP próprio: o balde de cadastro do IP local é dividido com outros testes. */
+    private void registerFrom(String ip, String email) throws Exception {
+        register(fromCloudflare(ip, post("/auth/register")), email).andExpect(status().isCreated());
+    }
+
+    private static Cookie deviceCookieFrom(ResultActions login) throws Exception {
+        Cookie device = login.andExpect(status().isOk()).andReturn().getResponse().getCookie("loginDevice");
+        assertThat(device).as("o login certo grava o cookie de aparelho").isNotNull();
+        return device;
     }
 
     private ResultActions register(MockHttpServletRequestBuilder request, String email) throws Exception {

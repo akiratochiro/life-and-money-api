@@ -52,7 +52,7 @@ public class User{
         this.passwordHash = Objects.requireNonNull(newPasswordHash, "passwordHash is required");
     }
 
-    static String normalizeEmail(String email){
+    public static String normalizeEmail(String email){
         Objects.requireNonNull(email, "email is required");
         return email.toLowerCase(Locale.ROOT).strip();
     }

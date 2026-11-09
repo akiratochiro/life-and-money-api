@@ -363,3 +363,25 @@ between the API deploy and the front deploy, the same kind of window that once b
 screen. The cost is a second way to create a category (with and without color), which the
 integration tests cover. The backfill is tested against a schema migrated to V9 with old-format
 rows, since an empty test database would not exercise it.
+
+## 13. A device cookie keeps the per-email login limit from locking out the account owner
+
+**Context.** Login had two limits: per IP and per email. The per-email one is what stops someone
+testing passwords against one account from many IPs, but it let anyone lock any account: ten wrong
+passwords with someone else's email, and the owner could not sign in for the next minutes. Raising
+the limit would make password guessing cheaper; removing it would leave distributed guessing open.
+
+**Decision.** A successful login sets `loginDevice`, an `HttpOnly`, `SameSite=Strict` cookie scoped
+to `/api/auth/login` and valid for a year (OWASP's "device cookie"). Its value is a random id plus an
+HMAC-SHA256 of `id:email`, so nothing is stored in the database. A login that presents a valid
+cookie for that email skips the per-email bucket and uses one keyed by the device id
+(`LOGIN_PER_DEVICE`, also 10 per 15 minutes); every other login shares the per-email bucket as
+before. The HMAC key is derived from `JWT_SECRET` with a fixed label instead of being a new secret.
+
+**Consequences.** An attacker can still exhaust the per-email bucket, but that only blocks browsers
+that never signed in to the account; the owner's usual browser keeps working. A stolen device cookie
+does not give unlimited attempts, since it has its own bucket. A cookie from one account is useless
+for another, and a tampered one counts as no cookie. The trade-off: an owner on a new device during
+an attack is still blocked until the bucket refills, and deriving the key from `JWT_SECRET` means
+rotating that secret also invalidates every device cookie (they just fall back to the shared limit
+until the next successful login). The per-IP limit is unchanged and applies to everyone.

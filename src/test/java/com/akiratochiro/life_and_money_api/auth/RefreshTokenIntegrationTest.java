@@ -8,6 +8,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.time.Duration;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,6 +34,22 @@ class RefreshTokenIntegrationTest extends IntegrationTest {
         mockMvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.email").value("sessao.login@test.dev"));
+    }
+
+    @Test
+    void theDeviceCookieIsHttpOnlyStrictLongLivedAndOnlySentToLogin() throws Exception {
+        register("sessao.aparelho@test.dev");
+
+        String setCookie = login("sessao.aparelho@test.dev").getResponse()
+                .getHeaders(HttpHeaders.SET_COOKIE).stream()
+                .filter(cookie -> cookie.startsWith("loginDevice="))
+                .findFirst().orElseThrow();
+
+        assertThat(setCookie)
+                .contains("HttpOnly")
+                .contains("Path=/api/auth/login")
+                .contains("SameSite=Strict")
+                .contains("Max-Age=" + Duration.ofDays(365).toSeconds());
     }
 
     @Test

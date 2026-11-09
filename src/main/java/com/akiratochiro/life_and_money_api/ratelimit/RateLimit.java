@@ -12,8 +12,15 @@ public enum RateLimit {
     /** Folgado de propósito: várias pessoas podem sair pelo mesmo IP (casa, escritório, 4G). */
     LOGIN_PER_IP(20, Duration.ofMinutes(1)),
 
-    /** Segura o teste de senhas contra uma conta, mesmo que venha de muitos IPs. */
+    /**
+     * Segura o teste de senhas contra uma conta, mesmo que venha de muitos IPs. Vale só para
+     * navegadores que nunca entraram na conta: os que já entraram (com o cookie de aparelho) ficam
+     * no {@link #LOGIN_PER_DEVICE}, e por isso quem trava este balde não trava o dono da conta.
+     */
     LOGIN_PER_EMAIL(10, Duration.ofMinutes(15)),
+
+    /** O limite de um navegador que já entrou na conta. Com o cookie roubado, o teste segue lento. */
+    LOGIN_PER_DEVICE(10, Duration.ofMinutes(15)),
 
     REGISTER_PER_IP(5, Duration.ofHours(1)),
 

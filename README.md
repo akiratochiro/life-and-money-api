@@ -25,7 +25,8 @@ account only ever sees its own data.
 - **Authentication** with a short-lived JWT access token plus a rotating refresh token in an
   `HttpOnly` cookie, BCrypt password hashing and per-user data isolation
 - **Rate limiting** on login (per IP and per email), registration, password reset and token
-  refresh, answering `429` with `Retry-After`; the client IP comes from a header the front's
+  refresh, with a signed device cookie so that someone locking an email cannot lock out a browser
+  that already signed in to it, answering `429` with `Retry-After`; the client IP comes from a header the front's
   Worker signs with a shared secret, never from the spoofable `X-Forwarded-For`
 - **Account deletion and data export**: deleting the account requires the password and removes
   every row of the user in a single transaction; the export returns all of it as JSON
