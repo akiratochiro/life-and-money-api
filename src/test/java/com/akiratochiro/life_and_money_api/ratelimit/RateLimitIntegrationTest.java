@@ -171,7 +171,7 @@ class RateLimitIntegrationTest extends IntegrationTest {
     void registrationIsLimitedPerIp() throws Exception {
         for (int attempt = 1; attempt <= 5; attempt++) {
             register(fromCloudflare("203.0.113.80", post("/auth/register")), "cadastro" + attempt + "@test.dev")
-                    .andExpect(status().isCreated());
+                    .andExpect(status().isAccepted());
         }
 
         register(fromCloudflare("203.0.113.80", post("/auth/register")), "cadastro6@test.dev")
@@ -199,6 +199,21 @@ class RateLimitIntegrationTest extends IntegrationTest {
         }
 
         resetPassword(fromCloudflare("203.0.113.95", post("/auth/reset-password")), "token-inventado-11")
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
+    void confirmingTheEmailIsLimitedPerIp() throws Exception {
+        for (int attempt = 1; attempt <= 10; attempt++) {
+            mockMvc.perform(fromCloudflare("203.0.113.96", post("/auth/confirm-email"))
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"token\": \"inventado-" + attempt + "\"}"))
+                    .andExpect(status().isBadRequest());
+        }
+
+        mockMvc.perform(fromCloudflare("203.0.113.96", post("/auth/confirm-email"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"token\": \"inventado-11\"}"))
                 .andExpect(status().isTooManyRequests());
     }
 
@@ -240,9 +255,19 @@ class RateLimitIntegrationTest extends IntegrationTest {
                 """.formatted(email, password)));
     }
 
-    /** Cadastro de um IP próprio: o balde de cadastro do IP local é dividido com outros testes. */
+    /**
+     * Cadastro (e confirmação) de um IP próprio: os baldes do IP local são divididos com outros
+     * testes.
+     */
     private void registerFrom(String ip, String email) throws Exception {
-        register(fromCloudflare(ip, post("/auth/register")), email).andExpect(status().isCreated());
+        register(fromCloudflare(ip, post("/auth/register")), email).andExpect(status().isAccepted());
+        mockMvc.perform(fromCloudflare(ip, post("/auth/confirm-email"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"token": "%s"}
+                                """.formatted(confirmationTokenFor(email))))
+                .andExpect(status().isCreated());
+        emails.clearTo(email);
     }
 
     private static Cookie deviceCookieFrom(ResultActions login) throws Exception {

@@ -430,3 +430,33 @@ weak password can get through while the service is down: failing closed would me
 sign up or reset a password because of a third party, which is worse. Integration tests use a fixed
 list (`KnownBreachedPasswords`) and never touch the network; the client is tested against simulated
 responses, including the padding lines with a count of 0.
+
+## 16. Sign-up confirms the email before the account exists
+
+**Context.** Anyone could create an account with someone else's email, and the sign-up answered
+`409 E-mail já cadastrado` for an email that already had an account: a free lookup of who uses the
+app, which the password reset had been designed not to give (decision on `forgot-password`).
+
+**Decision.** `POST /auth/register` always answers `202` with the same message. The request does
+the same work for everyone (validation, rate limit, breached-password check and BCrypt) and hands
+the rest to a queue, as the password reset does, so neither the body nor the response time depends
+on the email. In the background:
+
+- a new email gets a row in `pending_registrations` (migration V12) and a link valid for 24 hours;
+  the account is only created by `POST /auth/confirm-email`, which consumes the row in a single
+  `DELETE` so the link works once;
+- an email that already has an account gets a warning instead ("someone tried to sign up with this
+  email"), pointing to the password reset; the account and its password do not change;
+- a second request for the same email within a minute sends nothing, and a later one replaces the
+  pending name, password and link.
+
+The front's confirmation page asks for a click instead of confirming on load, because mail
+scanners open links: if loading the page confirmed, an attacker who signed up with a victim's email
+and the attacker's own password would get the account the moment the victim's antivirus opened the
+link.
+
+**Consequences.** Every account now has an email someone actually controls, and sign-up no longer
+reveals who is registered. The price is friction: a new user has to open their inbox before using
+the app, each sign-up spends one of Brevo's 300 free emails a day, and a pending row with a BCrypt
+hash lives for up to 24 hours (expired rows are deleted on the next sign-up). The integration tests'
+`register()` helper goes through the email link like a real user, so every test exercises the flow.

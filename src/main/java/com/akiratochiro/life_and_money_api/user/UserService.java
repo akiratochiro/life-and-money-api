@@ -30,17 +30,28 @@ public class UserService {
         this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
+    /**
+     * O BCrypt da senha de um cadastro. Fica separado da criação da conta porque roda na
+     * requisição, igual para todo mundo, e a conta só nasce depois, na confirmação do e-mail.
+     */
+    public String hashPassword(String rawPassword) {
+        return passwordEncoder.encode(rawPassword);
+    }
+
+    /**
+     * Cria a conta de um cadastro cujo e-mail acabou de ser confirmado.
+     *
+     * @throws EmailAlreadyInUseException se o e-mail ganhou uma conta nesse meio-tempo
+     */
     @Transactional
-    public User register(String name, String email, String rawPassword) {
+    public User createConfirmed(String name, String email, String passwordHash) {
         String normalizedEmail = User.normalizeEmail(email);
 
         if (userRepository.existsByEmail(normalizedEmail)) {
             throw new EmailAlreadyInUseException();
         }
 
-        String passwordHash = passwordEncoder.encode(rawPassword);
         User user = userRepository.save(new User(name, normalizedEmail, passwordHash));
-
         eventPublisher.publishEvent(new UserRegisteredEvent(user.getId()));
         return user;
     }

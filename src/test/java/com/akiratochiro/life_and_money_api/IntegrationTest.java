@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api;
 
+import com.akiratochiro.life_and_money_api.email.EmailMessage;
 import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -9,7 +10,14 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
+
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -53,19 +61,47 @@ public abstract class IntegrationTest {
         holidays.failing(false);
     }
 
-    /** Cadastra um usuário e devolve o id dele. */
+    private static final Pattern CONFIRMATION_LINK = Pattern.compile("/confirm-email\\?token=([A-Za-z0-9_-]+)");
+
+    /**
+     * Cadastra um usuário como um usuário de verdade faria (pede o cadastro e usa o link do e-mail)
+     * e devolve o id dele.
+     */
     protected Long register(String email) throws Exception {
         String body = """
                 {"name": "Teste", "email": "%s", "password": "senha12345"}
                 """.formatted(email);
 
-        MvcResult result = mockMvc.perform(post("/auth/register")
+        mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
+                .andExpect(status().isAccepted());
+
+        MvcResult result = confirmEmail(confirmationTokenFor(email))
                 .andExpect(status().isCreated())
                 .andReturn();
 
+        // O usuário chega pronto, como antes da confirmação existir: a caixa dele começa vazia, e o
+        // "primeiro e-mail" que um teste esperar é o do que ele estiver testando.
+        emails.clearTo(email);
         return idOf(result);
+    }
+
+    protected ResultActions confirmEmail(String token) throws Exception {
+        return mockMvc.perform(post("/auth/confirm-email")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"token": "%s"}
+                        """.formatted(token)));
+    }
+
+    /** O token do último link de confirmação enviado para o e-mail. */
+    protected String confirmationTokenFor(String email) {
+        List<EmailMessage> messages = emails.messagesTo(email);
+        assertThat(messages).as("um e-mail de confirmação para " + email).isNotEmpty();
+        Matcher matcher = CONFIRMATION_LINK.matcher(messages.getLast().text());
+        assertThat(matcher.find()).as("o e-mail traz o link de confirmação").isTrue();
+        return matcher.group(1);
     }
 
     /** Cria uma categoria para o usuário e devolve o id dela. */

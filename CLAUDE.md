@@ -80,6 +80,10 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 - **Cookie de aparelho no login** (decisão 13): `loginDevice`, HMAC de `id:email`, só em
   `/api/auth/login`. Com ele válido, o login usa `LOGIN_PER_DEVICE` em vez de `LOGIN_PER_EMAIL`,
   para quem trava um e-mail não travar o dono da conta.
+- **Cadastro com confirmação de e-mail** (decisão 16): `POST /auth/register` responde sempre `202`; a
+  conta só nasce em `POST /auth/confirm-email`. O que depende de o e-mail ter conta roda na
+  `RegistrationQueue`. Nos testes, o `register()` da base passa pelo link do e-mail e limpa a caixa
+  do usuário no fim.
 - **Senha vazada é recusada** (decisão 15): `PasswordPolicy.requireNotBreached` no cadastro e no
   reset (antes de gastar o token), pela Pwned Passwords (`PwnedPasswordsClient`, timeouts de 2 s e
   3 s, **falha aberta**). Toda forma nova de definir senha chama a mesma regra. Os testes usam o
@@ -106,7 +110,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   `SecureRandom` e só o SHA-256 no banco. Queries `@Modifying` usam `flushAutomatically = true`
   junto com `clearAutomatically`, senão alterações pendentes da transação são descartadas.
 - **Nada que dependa de a conta existir pode mudar a resposta**, nem no corpo nem no tempo: o
-  `forgot-password` faz todo o trabalho fora da requisição (`PasswordResetQueue`), e o limite de
+  cadastro e o `forgot-password` fazem todo o trabalho fora da requisição (`RegistrationQueue` e `PasswordResetQueue`), e o limite de
   1 pedido por minuto por conta descarta o pedido em silêncio, sem `429`.
 - **Front e API na mesma origem, sem CORS.** O Worker do front faz proxy de `/api/*` para a API,
   e o proxy do Vite faz o mesmo no dev (decisão 5). Não reintroduza CORS nem uma lista de

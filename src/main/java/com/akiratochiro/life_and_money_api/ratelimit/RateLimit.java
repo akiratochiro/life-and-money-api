@@ -34,6 +34,9 @@ public enum RateLimit {
      */
     RESET_PASSWORD_PER_IP(10, Duration.ofMinutes(15)),
 
+    /** Como o de redefinição: o token tem 256 bits, e o limite só barra quem martela o endpoint. */
+    CONFIRM_EMAIL_PER_IP(10, Duration.ofMinutes(15)),
+
     /** O app renova a cada ~14 minutos; várias abas e várias pessoas no mesmo IP somam. */
     REFRESH_PER_IP(30, Duration.ofMinutes(1)),
 

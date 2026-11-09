@@ -61,6 +61,8 @@ public class AuthController {
     private final RateLimiter rateLimiter;
     private final ClientIpResolver clientIpResolver;
     private final PasswordPolicy passwordPolicy;
+    private final RegistrationService registrationService;
+    private final RegistrationQueue registrationQueue;
 
     public AuthController(UserService userService,
                           TokenService tokenService,
@@ -71,7 +73,9 @@ public class AuthController {
                           PasswordResetQueue passwordResetQueue,
                           RateLimiter rateLimiter,
                           ClientIpResolver clientIpResolver,
-                          PasswordPolicy passwordPolicy) {
+                          PasswordPolicy passwordPolicy,
+                          RegistrationService registrationService,
+                          RegistrationQueue registrationQueue) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
@@ -82,17 +86,34 @@ public class AuthController {
         this.rateLimiter = rateLimiter;
         this.clientIpResolver = clientIpResolver;
         this.passwordPolicy = passwordPolicy;
+        this.registrationService = registrationService;
+        this.registrationQueue = registrationQueue;
     }
 
     @PostMapping("/register")
-    @ResponseStatus(HttpStatus.CREATED)
-    @Operation(summary = "Cadastra um usuário",
-            description = "Não abre sessão: depois do cadastro, chame POST /auth/login.")
-    public UserResponse register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Pede um cadastro",
+            description = "Responde sempre 202 com a mesma mensagem, exista ou não uma conta com o e-mail: "
+                    + "a resposta não pode servir para descobrir quem tem cadastro. Um e-mail novo recebe "
+                    + "um link de confirmação, que vale por 24 horas; a conta só é criada em "
+                    + "POST /auth/confirm-email. Quem já tem conta recebe um aviso por e-mail, e a senha "
+                    + "dele não muda. Senhas de vazamentos conhecidos são recusadas com 400.")
+    public RegistrationResponse register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
         rateLimiter.consume(RateLimit.REGISTER_PER_IP, clientIpResolver.resolve(httpRequest));
         passwordPolicy.requireNotBreached(request.password(), "password");
-        User user = userService.register(request.name(), request.email(), request.password());
-        return UserResponse.from(user);
+        // O BCrypt roda aqui, para todo mundo; o que depende de a conta existir vai para a fila.
+        registrationQueue.enqueue(request.name(), request.email(), userService.hashPassword(request.password()));
+        return RegistrationResponse.INSTANCE;
+    }
+
+    @PostMapping("/confirm-email")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Confirma o e-mail e cria a conta",
+            description = "Usa o token do link enviado no cadastro. Vale uma vez só. Não abre sessão: "
+                    + "depois, chame POST /auth/login.")
+    public UserResponse confirmEmail(@Valid @RequestBody ConfirmEmailRequest request, HttpServletRequest httpRequest) {
+        rateLimiter.consume(RateLimit.CONFIRM_EMAIL_PER_IP, clientIpResolver.resolve(httpRequest));
+        return UserResponse.from(registrationService.confirm(request.token()));
     }
 
     @PostMapping("/login")

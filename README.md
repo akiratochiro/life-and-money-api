@@ -36,6 +36,9 @@ account only ever sees its own data.
 - **Breached passwords refused** on sign-up and reset, checked against Have I Been Pwned's
   Pwned Passwords with k-anonymity (only 5 characters of the hash leave the server), failing open
   if the service is down
+- **Sign-up with email confirmation**: the account is only created through a 24-hour, single-use
+  link; the sign-up answers the same whether or not the email is taken, and the owner of an existing
+  account gets a warning instead
 - **Password reset by email**: a single-use, 30-minute link whose token is stored only as a
   SHA-256 hash; the request answers the same whether or not the account exists, in body and in
   time, and a reset ends every session of the user

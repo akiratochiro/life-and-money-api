@@ -46,4 +46,9 @@ public class RecordingEmailSender implements EmailSender {
     public void clear() {
         sent.clear();
     }
+
+    /** Esquece os e-mails de um destinatário, como o de confirmação de quem já foi cadastrado. */
+    public void clearTo(String to) {
+        sent.removeIf(message -> message.to().equals(to));
+    }
 }

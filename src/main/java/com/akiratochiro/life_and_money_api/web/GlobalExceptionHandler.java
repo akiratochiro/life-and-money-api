@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.web;
 
 import com.akiratochiro.life_and_money_api.auth.BreachedPasswordException;
+import com.akiratochiro.life_and_money_api.auth.InvalidConfirmationTokenException;
 import com.akiratochiro.life_and_money_api.auth.InvalidPasswordResetTokenException;
 import com.akiratochiro.life_and_money_api.auth.InvalidRefreshTokenException;
 import com.akiratochiro.life_and_money_api.bill.BillAlreadyPaidException;
@@ -106,6 +107,11 @@ public class GlobalExceptionHandler {
         problem.setTitle("Dados inválidos");
         problem.setProperty("errors", Map.of(ex.getField(), ex.getMessage()));
         return problem;
+    }
+
+    @ExceptionHandler(InvalidConfirmationTokenException.class)
+    public ProblemDetail handleInvalidConfirmationToken(InvalidConfirmationTokenException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Link inválido", ex);
     }
 
     @ExceptionHandler(InvalidPasswordResetTokenException.class)

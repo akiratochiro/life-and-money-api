@@ -72,10 +72,11 @@ class ErrorContractIntegrationTest extends IntegrationTest {
                 {"name": "Teste", "email": "senha.acento@test.dev", "password": "%s"}
                 """.formatted("ç".repeat(36));
 
+        // O BCrypt roda na requisição: acima do limite, seria um 500 aqui.
         mockMvc.perform(post("/auth/register")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(body))
-                .andExpect(status().isCreated());
+                .andExpect(status().isAccepted());
     }
 
     @Test
