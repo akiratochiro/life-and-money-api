@@ -36,6 +36,33 @@ class ErrorContractIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void aPasswordOverTheBcryptByteLimitIsAValidationErrorAndNotA500() throws Exception {
+        // 40 caracteres passam no @Size, mas "ç" ocupa 2 bytes: 80 bytes, acima dos 72 do BCrypt.
+        String body = """
+                {"name": "Teste", "email": "senha.longa@test.dev", "password": "%s"}
+                """.formatted("ç".repeat(40));
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.password").value(
+                        "A senha é longa demais: acentos e símbolos ocupam mais espaço. Tente uma senha mais curta."));
+    }
+
+    @Test
+    void anAccentedPasswordWithinTheByteLimitIsAccepted() throws Exception {
+        String body = """
+                {"name": "Teste", "email": "senha.acento@test.dev", "password": "%s"}
+                """.formatted("ç".repeat(36));
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
     void wrongPasswordReturnsUnauthorizedWithoutSayingWhichFieldFailed() throws Exception {
         register("login.errado@test.dev");
 
