@@ -38,4 +38,4 @@ services:
         sync: false
       # URL do front, sem barra no final: é a base dos links enviados por e-mail.
       - key: APP_FRONT_URL
-        value: https://life-and-money-web.akira-tochiro23.workers.dev
+        value: https://life-and-money.akira-tochiro23.workers.dev

@@ -199,7 +199,7 @@ no `wrangler.jsonc` do repositório.
    ```
 
 4. Guarde a URL que o `wrangler deploy` imprime, algo como
-   `https://life-and-money-web.<seu-subdominio>.workers.dev`.
+   `https://life-and-money.<seu-subdominio>.workers.dev` (o nome vem do `name` do `wrangler.jsonc`).
 
 Abrir `/goals` direto no navegador funciona porque o `wrangler.jsonc` declara
 `"not_found_handling": "single-page-application"`: qualquer caminho que não seja um arquivo do

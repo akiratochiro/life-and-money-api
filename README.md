@@ -10,7 +10,7 @@ architecture, explicit design decisions and automated tests.
 
 ## Live demo
 
-- **App:** https://life-and-money-web.akira-tochiro23.workers.dev
+- **App:** https://life-and-money.akira-tochiro23.workers.dev
 - **API docs (Swagger UI):** https://life-and-money-api.onrender.com/swagger-ui/index.html
 - **Web front-end repository:** [life-and-money-web](https://github.com/akiratochiro/life-and-money-web)
 
