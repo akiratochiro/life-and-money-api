@@ -18,6 +18,9 @@ public class User{
     private String passwordHash;
     private Instant createdAt;
 
+    /** Sobe a cada troca de senha; ver {@link CredentialsVersions}. */
+    private int credentialsVersion;
+
     protected User(){}
 
     public User(String name, String email, String passwordHash){
@@ -47,9 +50,17 @@ public class User{
         return createdAt;
     }
 
-    /** Recebe o hash, nunca a senha: quem calcula o BCrypt é o UserService. */
+    public int getCredentialsVersion() {
+        return credentialsVersion;
+    }
+
+    /**
+     * Recebe o hash, nunca a senha: quem calcula o BCrypt é o UserService. Sobe a versão das
+     * credenciais, o que invalida os access tokens emitidos antes.
+     */
     void changePasswordHash(String newPasswordHash) {
         this.passwordHash = Objects.requireNonNull(newPasswordHash, "passwordHash is required");
+        this.credentialsVersion++;
     }
 
     public static String normalizeEmail(String email){

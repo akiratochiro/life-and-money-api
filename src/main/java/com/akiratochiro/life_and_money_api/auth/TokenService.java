@@ -32,6 +32,7 @@ class TokenService {
                 .issuedAt(now)
                 .expiresAt(now.plus(expiration))
                 .subject(user.getId().toString())
+                .claim(CredentialsVersionValidator.CLAIM, user.getCredentialsVersion())
                 .build();
 
         JwsHeader header = JwsHeader.with(MacAlgorithm.HS256).build();

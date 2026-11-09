@@ -385,3 +385,26 @@ for another, and a tampered one counts as no cookie. The trade-off: an owner on 
 an attack is still blocked until the bucket refills, and deriving the key from `JWT_SECRET` means
 rotating that secret also invalidates every device cookie (they just fall back to the shared limit
 until the next successful login). The per-IP limit is unchanged and applies to everyone.
+
+## 14. Access tokens carry a credentials version, so a password reset ends them too
+
+**Context.** Resetting the password revoked every refresh token, but an access token is a
+self-contained JWT: whoever had stolen one kept access until it expired, up to 15 minutes after the
+owner reset the password because of that very theft. The same held after deleting the account.
+
+**Decision.** `users.credentials_version` (migration V11) goes up on every password change. Access
+tokens carry the version they were issued at in a `cv` claim, and a `CredentialsVersionValidator`,
+added to the JWT decoder next to the issuer check, rejects a token whose version is not the current
+one, or whose user no longer exists. The current versions sit in a Caffeine cache
+(`CredentialsVersions`) that is invalidated after the commit of a password change or an account
+deletion, through `CredentialsChangedEvent`. A token without the claim counts as version 0, which is
+where every user starts.
+
+**Consequences.** A password reset now ends every session at once, access tokens included, and
+an account deletion does the same. The cost is one cached lookup per authenticated request, and a
+database query only on a cache miss, instead of a purely stateless check: the trade-off any
+revocable JWT ends up making. The cache is local, which is exact with a single instance; with more
+than one, the others would see the new version only after the five-minute expiry, the same caveat
+as the in-memory rate limiter. Treating a missing claim as 0 kept the deploy from logging everyone
+out, since the front ends the session on a 401 instead of retrying. The `config` package receives
+the validator as a generic `OAuth2TokenValidator<Jwt>` bean, so it does not depend on `auth`.

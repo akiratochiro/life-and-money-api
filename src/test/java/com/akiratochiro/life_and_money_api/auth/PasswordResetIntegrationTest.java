@@ -2,6 +2,7 @@ package com.akiratochiro.life_and_money_api.auth;
 
 import com.akiratochiro.life_and_money_api.IntegrationTest;
 import com.akiratochiro.life_and_money_api.email.EmailMessage;
+import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -44,6 +46,26 @@ class PasswordResetIntegrationTest extends IntegrationTest {
 
         emails.awaitMessageTo("reset.existe@test.dev", 1);
         assertThat(emails.messagesTo("reset.ninguem@test.dev")).isEmpty();
+    }
+
+    @Test
+    void resettingThePasswordAlsoEndsTheAccessTokensAlreadyIssued() throws Exception {
+        register("reset.access@test.dev");
+        String stolen = accessTokenOf(login("reset.access@test.dev", "senha12345").andReturn());
+        mockMvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + stolen))
+                .andExpect(status().isOk());
+
+        forgotPassword("reset.access@test.dev");
+        resetPassword(tokenFrom(emails.awaitMessageTo("reset.access@test.dev", 1)), "senhaNova987")
+                .andExpect(status().isNoContent());
+
+        // Quem tinha o token antigo perde o acesso na hora, não quando ele vencer.
+        mockMvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + stolen))
+                .andExpect(status().isUnauthorized());
+
+        String fresh = accessTokenOf(login("reset.access@test.dev", "senhaNova987").andReturn());
+        mockMvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + fresh))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -217,6 +239,10 @@ class PasswordResetIntegrationTest extends IntegrationTest {
                 .content("""
                         {"email": "%s", "password": "%s"}
                         """.formatted(email, password)));
+    }
+
+    private static String accessTokenOf(MvcResult result) throws Exception {
+        return JsonPath.parse(result.getResponse().getContentAsString()).read("$.accessToken");
     }
 
     private static String refreshCookieOf(MvcResult result) {

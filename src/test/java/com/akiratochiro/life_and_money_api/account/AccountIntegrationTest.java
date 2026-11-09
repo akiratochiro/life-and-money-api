@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.account;
 
 import com.akiratochiro.life_and_money_api.IntegrationTest;
+import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,7 +63,9 @@ class AccountIntegrationTest extends IntegrationTest {
     @Test
     void afterTheDeletionTheOldSessionNoLongerWorks() throws Exception {
         Long ana = registerWithData("exclusao.sessao@test.dev");
-        String session = refreshCookieOf(login("exclusao.sessao@test.dev").andReturn());
+        MvcResult loggedIn = login("exclusao.sessao@test.dev").andReturn();
+        String session = refreshCookieOf(loggedIn);
+        String accessToken = JsonPath.parse(loggedIn.getResponse().getContentAsString()).read("$.accessToken");
 
         deleteAccount(ana, PASSWORD)
                 .andExpect(header().string(HttpHeaders.SET_COOKIE,
@@ -73,6 +76,9 @@ class AccountIntegrationTest extends IntegrationTest {
                         .header("X-Refresh-Request", "1"))
                 .andExpect(status().isUnauthorized());
         login("exclusao.sessao@test.dev").andExpect(status().isUnauthorized());
+        // O access token já emitido também para de valer, sem esperar os 15 minutos dele.
+        mockMvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test

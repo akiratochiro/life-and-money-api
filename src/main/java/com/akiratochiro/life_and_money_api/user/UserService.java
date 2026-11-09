@@ -97,6 +97,7 @@ public class UserService {
     @Transactional
     public void delete(Long userId) {
         userRepository.deleteById(userId);
+        eventPublisher.publishEvent(new CredentialsChangedEvent(userId));
     }
 
     @Transactional
@@ -104,5 +105,6 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(UserNotFoundException::new);
         user.changePasswordHash(passwordEncoder.encode(rawPassword));
+        eventPublisher.publishEvent(new CredentialsChangedEvent(userId));
     }
 }
