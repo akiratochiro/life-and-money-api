@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 
@@ -16,6 +17,9 @@ import java.util.Base64;
 
 @Configuration
 public class JwtConfig {
+
+    /** Quem emite os access tokens. O {@code TokenService} grava, o decoder confere. */
+    public static final String ISSUER = "life-and-money-api";
 
     private final SecretKey secretKey;
 
@@ -28,10 +32,16 @@ public class JwtConfig {
         return new NimbusJwtEncoder(new ImmutableSecret<>(secretKey));
     }
 
+    /**
+     * Além da assinatura e da validade, confere o emissor: um token assinado com a mesma chave para
+     * outro fim (um segredo reaproveitado entre ambientes ou projetos) não vira sessão aqui.
+     */
     @Bean
     public JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withSecretKey(secretKey)
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey)
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
+        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(ISSUER));
+        return decoder;
     }
 }

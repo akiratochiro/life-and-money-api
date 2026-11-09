@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.auth;
 
+import com.akiratochiro.life_and_money_api.config.JwtConfig;
 import com.akiratochiro.life_and_money_api.user.User;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -27,7 +28,7 @@ class TokenService {
         Instant now = Instant.now();
 
         JwtClaimsSet claims = JwtClaimsSet.builder()
-                .issuer("life-and-money-api")
+                .issuer(JwtConfig.ISSUER)
                 .issuedAt(now)
                 .expiresAt(now.plus(expiration))
                 .subject(user.getId().toString())
