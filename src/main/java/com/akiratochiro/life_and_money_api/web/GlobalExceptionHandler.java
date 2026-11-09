@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.web;
 
+import com.akiratochiro.life_and_money_api.auth.BreachedPasswordException;
 import com.akiratochiro.life_and_money_api.auth.InvalidPasswordResetTokenException;
 import com.akiratochiro.life_and_money_api.auth.InvalidRefreshTokenException;
 import com.akiratochiro.life_and_money_api.bill.BillAlreadyPaidException;
@@ -94,6 +95,16 @@ public class GlobalExceptionHandler {
                         closedList ? "Escolha uma das opções disponíveis." : "Valor inválido."));
             }
         }
+        return problem;
+    }
+
+    /** Como um erro de validação: o campo da senha vai marcado no formulário. */
+    @ExceptionHandler(BreachedPasswordException.class)
+    public ProblemDetail handleBreachedPassword(BreachedPasswordException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Confira os campos destacados e tente de novo.");
+        problem.setTitle("Dados inválidos");
+        problem.setProperty("errors", Map.of(ex.getField(), ex.getMessage()));
         return problem;
     }
 

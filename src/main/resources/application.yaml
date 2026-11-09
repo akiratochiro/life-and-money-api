@@ -61,6 +61,12 @@ app:
       # o perfil dev só tira o Secure, porque o localhost roda em http.
       secure: ${REFRESH_COOKIE_SECURE:true}
       same-site: ${REFRESH_COOKIE_SAME_SITE:Strict}
+  pwned-passwords:
+    # Have I Been Pwned: gratuita, sem chave e sem limite na consulta de senhas. Só os 5 primeiros
+    # caracteres do SHA-1 da senha saem daqui. Se falhar ou demorar, a senha é aceita.
+    base-url: https://api.pwnedpasswords.com
+    connect-timeout: 2s
+    read-timeout: 3s
   holidays:
     # BrasilAPI: gratuita, sem chave. Timeout curto porque a tela de contas espera essa resposta;
     # se ela demorar ou falhar, os prazos consideram só os fins de semana.

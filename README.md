@@ -33,6 +33,9 @@ account only ever sees its own data.
   Worker signs with a shared secret, never from the spoofable `X-Forwarded-For`
 - **Account deletion and data export**: deleting the account requires the password and removes
   every row of the user in a single transaction; the export returns all of it as JSON
+- **Breached passwords refused** on sign-up and reset, checked against Have I Been Pwned's
+  Pwned Passwords with k-anonymity (only 5 characters of the hash leave the server), failing open
+  if the service is down
 - **Password reset by email**: a single-use, 30-minute link whose token is stored only as a
   SHA-256 hash; the request answers the same whether or not the account exists, in body and in
   time, and a reset ends every session of the user

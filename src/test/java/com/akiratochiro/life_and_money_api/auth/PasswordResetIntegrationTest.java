@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.auth;
 
 import com.akiratochiro.life_and_money_api.IntegrationTest;
+import com.akiratochiro.life_and_money_api.KnownBreachedPasswords;
 import com.akiratochiro.life_and_money_api.email.EmailMessage;
 import com.jayway.jsonpath.JsonPath;
 import jakarta.servlet.http.Cookie;
@@ -66,6 +67,19 @@ class PasswordResetIntegrationTest extends IntegrationTest {
         String fresh = accessTokenOf(login("reset.access@test.dev", "senhaNova987").andReturn());
         mockMvc.perform(get("/users/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + fresh))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void aBreachedNewPasswordIsRefusedWithoutSpendingTheLink() throws Exception {
+        register("reset.vazada@test.dev");
+        forgotPassword("reset.vazada@test.dev");
+        String token = tokenFrom(emails.awaitMessageTo("reset.vazada@test.dev", 1));
+
+        resetPassword(token, KnownBreachedPasswords.BREACHED)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.errors.newPassword").exists());
+
+        resetPassword(token, "senhaNova987").andExpect(status().isNoContent());
     }
 
     @Test

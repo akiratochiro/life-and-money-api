@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.web;
 
 import com.akiratochiro.life_and_money_api.IntegrationTest;
+import com.akiratochiro.life_and_money_api.KnownBreachedPasswords;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
@@ -48,6 +49,21 @@ class ErrorContractIntegrationTest extends IntegrationTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.errors.password").value(
                         "A senha é longa demais: acentos e símbolos ocupam mais espaço. Tente uma senha mais curta."));
+    }
+
+    @Test
+    void aPasswordFromKnownBreachesIsRefusedOnRegistrationWithTheFieldMarked() throws Exception {
+        String body = """
+                {"name": "Teste", "email": "senha.vazada@test.dev", "password": "%s"}
+                """.formatted(KnownBreachedPasswords.BREACHED);
+
+        mockMvc.perform(post("/auth/register")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Dados inválidos"))
+                .andExpect(jsonPath("$.errors.password").value(
+                        "Essa senha já apareceu em vazamentos de dados e é das primeiras que um invasor tenta. Escolha outra."));
     }
 
     @Test

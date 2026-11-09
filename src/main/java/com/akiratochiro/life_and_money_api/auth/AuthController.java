@@ -60,6 +60,7 @@ public class AuthController {
     private final PasswordResetQueue passwordResetQueue;
     private final RateLimiter rateLimiter;
     private final ClientIpResolver clientIpResolver;
+    private final PasswordPolicy passwordPolicy;
 
     public AuthController(UserService userService,
                           TokenService tokenService,
@@ -69,7 +70,8 @@ public class AuthController {
                           PasswordResetService passwordResetService,
                           PasswordResetQueue passwordResetQueue,
                           RateLimiter rateLimiter,
-                          ClientIpResolver clientIpResolver) {
+                          ClientIpResolver clientIpResolver,
+                          PasswordPolicy passwordPolicy) {
         this.userService = userService;
         this.tokenService = tokenService;
         this.refreshTokenService = refreshTokenService;
@@ -79,6 +81,7 @@ public class AuthController {
         this.passwordResetQueue = passwordResetQueue;
         this.rateLimiter = rateLimiter;
         this.clientIpResolver = clientIpResolver;
+        this.passwordPolicy = passwordPolicy;
     }
 
     @PostMapping("/register")
@@ -87,6 +90,7 @@ public class AuthController {
             description = "Não abre sessão: depois do cadastro, chame POST /auth/login.")
     public UserResponse register(@Valid @RequestBody RegisterRequest request, HttpServletRequest httpRequest) {
         rateLimiter.consume(RateLimit.REGISTER_PER_IP, clientIpResolver.resolve(httpRequest));
+        passwordPolicy.requireNotBreached(request.password(), "password");
         User user = userService.register(request.name(), request.email(), request.password());
         return UserResponse.from(user);
     }
@@ -166,6 +170,8 @@ public class AuthController {
                     + "São 10 tentativas a cada 15 minutos por IP.")
     public void resetPassword(@Valid @RequestBody ResetPasswordRequest request, HttpServletRequest httpRequest) {
         rateLimiter.consume(RateLimit.RESET_PASSWORD_PER_IP, clientIpResolver.resolve(httpRequest));
+        // Antes de usar o token: uma senha recusada não gasta o link.
+        passwordPolicy.requireNotBreached(request.newPassword(), "newPassword");
         passwordResetService.resetPassword(request.token(), request.newPassword());
     }
 

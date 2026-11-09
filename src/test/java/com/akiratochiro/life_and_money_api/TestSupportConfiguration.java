@@ -9,7 +9,7 @@ import org.springframework.core.task.TaskExecutor;
 import java.time.ZoneId;
 
 /**
- * Substitui o relógio, o envio de e-mail e os feriados nos testes de integração. Os nomes dos beans são
+ * Substitui o relógio, o envio de e-mail, os feriados e a lista de senhas vazadas nos testes de integração. Os nomes dos beans são
  * diferentes dos originais e o {@code @Primary} decide quem é injetado.
  */
 @TestConfiguration(proxyBeanMethods = false)
@@ -32,6 +32,13 @@ public class TestSupportConfiguration {
     @Primary
     FixedHolidaySource fixedHolidaySource() {
         return new FixedHolidaySource();
+    }
+
+    /** As senhas vazadas vêm de uma lista fixa: nenhum teste depende da Pwned Passwords no ar. */
+    @Bean
+    @Primary
+    KnownBreachedPasswords knownBreachedPasswords() {
+        return new KnownBreachedPasswords();
     }
 
     /**

@@ -408,3 +408,25 @@ than one, the others would see the new version only after the five-minute expiry
 as the in-memory rate limiter. Treating a missing claim as 0 kept the deploy from logging everyone
 out, since the front ends the session on a 401 instead of retrying. The `config` package receives
 the validator as a generic `OAuth2TokenValidator<Jwt>` bean, so it does not depend on `auth`.
+
+## 15. Passwords found in known breaches are refused, through the Pwned Passwords API
+
+**Context.** The only password rule was a length between 8 and 72: "12345678" and "password123"
+were accepted. With sign-up open to anyone, those are exactly the passwords an attacker tries first,
+and the per-email rate limit only slows that down.
+
+**Decision.** Registration and password reset also refuse any password present in Have I Been
+Pwned's Pwned Passwords, as NIST SP 800-63B recommends, instead of composition rules (an uppercase
+letter, a symbol), which the same guideline advises against. The API is free, needs no key and has
+no rate limit. Through k-anonymity only the first 5 characters of the password's SHA-1 leave the
+server; the response lists the suffixes with that prefix (with `Add-Padding`, so its size reveals
+nothing either) and the match happens locally. The check runs after the length validation and, on a
+reset, before the token is consumed, so a refused password does not spend the link. The client has
+2 s and 3 s timeouts and **fails open**: if the service is down, the password is accepted.
+
+**Consequences.** The most guessed passwords are gone without forcing arbitrary rules on people. The
+cost is a network call during sign-up and reset (a few hundred milliseconds), and a window where a
+weak password can get through while the service is down: failing closed would mean nobody could
+sign up or reset a password because of a third party, which is worse. Integration tests use a fixed
+list (`KnownBreachedPasswords`) and never touch the network; the client is tested against simulated
+responses, including the padding lines with a count of 0.

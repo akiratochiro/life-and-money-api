@@ -80,6 +80,10 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 - **Cookie de aparelho no login** (decisão 13): `loginDevice`, HMAC de `id:email`, só em
   `/api/auth/login`. Com ele válido, o login usa `LOGIN_PER_DEVICE` em vez de `LOGIN_PER_EMAIL`,
   para quem trava um e-mail não travar o dono da conta.
+- **Senha vazada é recusada** (decisão 15): `PasswordPolicy.requireNotBreached` no cadastro e no
+  reset (antes de gastar o token), pela Pwned Passwords (`PwnedPasswordsClient`, timeouts de 2 s e
+  3 s, **falha aberta**). Toda forma nova de definir senha chama a mesma regra. Os testes usam o
+  `KnownBreachedPasswords`, nunca a rede.
 - **IP do cliente só pelo `ClientIpResolver`**: `X-Client-IP` com o segredo do Worker
   (`X-Proxy-Auth`), senão `CF-Connecting-IP`, senão o endereço da conexão. Nunca use
   `X-Forwarded-For` (falsificável atrás do Render) nem mude `server.forward-headers-strategy` de
