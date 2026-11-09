@@ -73,6 +73,13 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   `HttpOnly`, `SameSite=Strict`, com path `/api/auth`, salvo como hash SHA-256 e rotacionado a
   cada uso. `POST /auth/refresh` exige o header `X-Refresh-Request`, segunda barreira contra
   CSRF (decisões 4 e 5).
+- **Access token revogável** (decisão 14): o JWT leva a claim `cv` (versão das credenciais), e o
+  `CredentialsVersionValidator` recusa versão antiga ou usuário excluído. Toda troca de senha passa
+  por `User.changePasswordHash` (que sobe a versão) e publica `CredentialsChangedEvent`; uma forma
+  nova de mudar credenciais precisa fazer o mesmo. Os testes com `asUser()` não passam pelo decoder.
+- **Cookie de aparelho no login** (decisão 13): `loginDevice`, HMAC de `id:email`, só em
+  `/api/auth/login`. Com ele válido, o login usa `LOGIN_PER_DEVICE` em vez de `LOGIN_PER_EMAIL`,
+  para quem trava um e-mail não travar o dono da conta.
 - **IP do cliente só pelo `ClientIpResolver`**: `X-Client-IP` com o segredo do Worker
   (`X-Proxy-Auth`), senão `CF-Connecting-IP`, senão o endereço da conexão. Nunca use
   `X-Forwarded-For` (falsificável atrás do Render) nem mude `server.forward-headers-strategy` de
