@@ -1,0 +1,23 @@
+# Dependabot (gratuito no GitHub): abre um PR quando uma dependência tem versão nova ou falha de
+# segurança conhecida. Cada PR passa pela CI antes de entrar, como qualquer outro.
+version: 2
+updates:
+  - package-ecosystem: maven
+    directory: /
+    schedule:
+      interval: weekly
+    # Spring e afins andam juntos: um PR por semana em vez de um por artefato.
+    groups:
+      maven:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+
+  # A imagem base do Dockerfile (eclipse-temurin) recebe as correções de segurança do JRE e do SO.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
