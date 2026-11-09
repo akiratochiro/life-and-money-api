@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Service
 public class UserService {
@@ -13,12 +14,20 @@ public class UserService {
    private final PasswordEncoder passwordEncoder;
    private final ApplicationEventPublisher eventPublisher;
 
+    /**
+     * Hash de uma senha que ninguém tem, gerado com o mesmo encoder (e o mesmo custo) dos hashes de
+     * verdade. O login com e-mail sem conta confere a senha contra ele: assim os dois casos levam o
+     * mesmo tempo, e o tempo de resposta não revela quem tem cadastro.
+     */
+    private final String dummyPasswordHash;
+
     public UserService(UserRepository userRepository,
                        PasswordEncoder passwordEncoder,
                        ApplicationEventPublisher eventPublisher) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
+        this.dummyPasswordHash = passwordEncoder.encode(UUID.randomUUID().toString());
     }
 
     @Transactional
@@ -38,14 +47,17 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public User authenticate(String email, String rawPassword) {
-        User user = userRepository.findByEmail(User.normalizeEmail(email))
-                .orElseThrow(InvalidCredentialsException::new);
+        Optional<User> found = userRepository.findByEmail(User.normalizeEmail(email));
 
-        if (!passwordEncoder.matches(rawPassword, user.getPasswordHash())) {
+        // O BCrypt roda nos dois caminhos, mesmo sem conta: ver dummyPasswordHash.
+        String hash = found.map(User::getPasswordHash).orElse(dummyPasswordHash);
+        boolean matches = passwordEncoder.matches(rawPassword, hash);
+
+        if (found.isEmpty() || !matches) {
             throw new InvalidCredentialsException();
         }
 
-        return user;
+        return found.get();
     }
 
     @Transactional(readOnly = true)
@@ -93,8 +105,4 @@ public class UserService {
                 .orElseThrow(UserNotFoundException::new);
         user.changePasswordHash(passwordEncoder.encode(rawPassword));
     }
-
-
-
-
 }
