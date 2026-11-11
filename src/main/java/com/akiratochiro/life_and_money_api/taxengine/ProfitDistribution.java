@@ -17,7 +17,7 @@ public final class ProfitDistribution {
      * A retenção sugerida da Lei 15.270/2025 (Lei 9.250, art. 6º-A): acima do limite mensal pago por uma
      * mesma empresa a uma mesma pessoa, a alíquota incide sobre o <b>total</b> do mês, não só sobre o
      * excedente. No Simples, a Receita entende que vale também; a aplicação é contestada
-     * ({@link UnverifiedLegalSource#LEI_15270_SIMPLES}). Zero até o limite.
+     * (Perguntas e Respostas da RFB de 19/12/2025, questão 10, conferido no texto oficial em 11/11/2026). Zero até o limite.
      */
     public static BigDecimal suggestedWithholding(BigDecimal monthTotal, TaxTable table) {
         if (monthTotal.compareTo(table.get(TaxParameter.DIVIDENDS_MONTHLY_EXEMPTION)) <= 0) {
@@ -41,8 +41,10 @@ public final class ProfitDistribution {
 
     /**
      * O lucro isento estimado sem contabilidade (LC 123, art. 14; Res. CGSN 140, art. 145 —
-     * {@link UnverifiedLegalSource#RES_CGSN_140_ART_145}): a presunção da Lei 9.249, art. 15, sobre a
-     * receita, menos o IRPJ devido no Simples no período. Nunca negativo.
+     * conferido no texto oficial em 11/11/2026): a presunção da Lei 9.249, art. 15, sobre a
+     * receita, menos o IRPJ devido no Simples no período. Nunca negativo. A LC 123, art. 14, § 1º, fala em
+     * subtrair "o valor devido na forma do Simples Nacional"; a Res. CGSN 140, art. 145, § 1º, restringe à
+     * parte "relativo ao IRPJ", e é ela que o app segue. O § 3º estende a regra ao MEI.
      */
     public static BigDecimal exemptionLimit(List<Month> months) {
         BigDecimal limit = BigDecimal.ZERO;

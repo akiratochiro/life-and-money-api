@@ -11,7 +11,7 @@ import java.util.Map;
  * proporção é a razão das somas.
  *
  * <p>Sem receita ou sem folha, valem os valores fixos da Res. CGSN 140, art. 26, §§6º e 7º
- * ({@link UnverifiedLegalSource#RES_CGSN_140_ART_26_PAR_6_7}): folha sem receita é 0,28 (Anexo
+ * (conferido no texto oficial em 11/11/2026): folha sem receita é 0,28 (Anexo
  * III); receita sem folha, ou nenhuma das duas, é 0,01 (Anexo V).
  *
  * <p>A folha é o que o chamador soma: pró-labores e despesas das categorias marcadas como folha

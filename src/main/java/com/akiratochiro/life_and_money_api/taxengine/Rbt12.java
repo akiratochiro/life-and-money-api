@@ -8,7 +8,7 @@ import java.util.Map;
 /**
  * A receita bruta dos 12 meses anteriores à competência, que escolhe a faixa (LC 123, art. 18,
  * §1º). Para quem tem menos de 12 meses, a receita é proporcionalizada (art. 18, §2º), pela regra
- * da Res. CGSN 140, art. 22 ({@link UnverifiedLegalSource#RES_CGSN_140_ART_22}):
+ * da Res. CGSN 140, art. 22 (conferido no texto oficial em 11/11/2026, §§ 2º a 4º):
  * <ul>
  *   <li>no 1º mês de atividade, a receita do próprio mês × 12;</li>
  *   <li>do 2º ao 12º mês, a média dos meses anteriores × 12;</li>

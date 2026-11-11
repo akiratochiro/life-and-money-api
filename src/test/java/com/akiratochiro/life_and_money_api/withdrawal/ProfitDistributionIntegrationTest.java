@@ -76,8 +76,8 @@ class ProfitDistributionIntegrationTest extends IntegrationTest {
         distribute(ana, company, me, "2026-11-09", "25000", "5500")
                 .andExpect(jsonPath("$.irrfAmount").value(5500.00))
                 .andExpect(jsonPath("$.netAmount").value(19500.00))
-                .andExpect(jsonPath("$.warnings", hasItem(containsString("somam R$ 55.000,00, acima de R$ 50.000,00. A Receita "
-                        + "entende que há retenção de 10% de IR sobre o total (R$ 5.500,00)"))));
+                .andExpect(jsonPath("$.warnings", hasItem(containsString("somam R$ 55.000,00, acima de R$ 50.000,00. Pela Lei "
+                        + "15.270/2025, há retenção de 10% de IR sobre o total (R$ 5.500,00)"))));
     }
 
     /** MEI de serviços: 10.000 × 32% = 3.200,00, sem IRPJ a descontar. E o pró-labore continua recusado. */

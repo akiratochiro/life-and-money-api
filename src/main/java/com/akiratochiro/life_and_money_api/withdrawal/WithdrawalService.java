@@ -279,9 +279,10 @@ public class WithdrawalService {
             if (suggested.signum() > 0) {
                 warnings.add("As distribuições de " + MONTH.format(month) + " a este sócio somam " + Money.brl(partnerMonth)
                         + ", acima de " + Money.brl(table.get(TaxParameter.DIVIDENDS_MONTHLY_EXEMPTION))
-                        + ". A Receita entende que há retenção de 10% de IR sobre o total (" + Money.brl(suggested)
-                        + "), inclusive no Simples (Lei 15.270/2025). O tema é contestado na Justiça: confirme com o seu "
-                        + "contador e, se houve retenção, informe o IRRF.");
+                        + ". Pela Lei 15.270/2025, há retenção de 10% de IR sobre o total (" + Money.brl(suggested)
+                        + "); a Receita aplica também ao Simples, o que é contestado na Justiça. Lucros de resultados até "
+                        + "2025, com distribuição aprovada até 31/12/2025, ficam de fora. Confirme com o seu contador e, se "
+                        + "houve retenção, informe o IRRF.");
             }
         });
 

@@ -10,7 +10,7 @@ import java.util.Locale;
  *   <li>a faixa sai do RBT12; a alíquota efetiva é (RBT12 × nominal − dedução) ÷ RBT12 (§1º-A);</li>
  *   <li>o DAS é a receita do mês × alíquota efetiva;</li>
  *   <li>na receita com ISS retido pelo tomador, a parte do ISS sai do DAS
- *       ({@link UnverifiedLegalSource#RES_CGSN_140_ART_25_PAR_9}). A parte do ISS é a efetiva × % do ISS
+ *       (Res. CGSN 140, art. 25, § 9º, II, conferido no texto oficial em 11/11/2026). A parte do ISS é a efetiva × % do ISS
  *       na repartição, limitada a 5%: o excedente fica com os tributos federais (nota da faixa 5 do
  *       Anexo III).</li>
  * </ul>

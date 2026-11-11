@@ -689,6 +689,16 @@ text means deleting its entry.
 **Consequences.** Work goes on without pretending the sources were verified, and the gap cannot be
 forgotten at deploy time. The normal suite and CI stay green.
 
+**Update (11/11/2026, Phase 6).** With browser access, all entries were checked against the official
+texts and removed: Res. CGSN 140, arts. 22 §§2º-4º, 25 §9º II, 26 §§6º-7º, 40 §3º (and art. 102 §2º for the
+DAS-MEI), 72 §1º, 109 and 145 (Receita's consolidated text); LC 123, arts. 14 and 18-A §7º, and Lei 9.250,
+art. 6º-A (Planalto); and the Receita's Perguntas e Respostas of 19/12/2025, question 10, which applies the
+10% withholding to the Simples. Two details surfaced: LC 123, art. 14 §1º subtracts "the amount due under
+the Simples" while Res. CGSN 140, art. 145 §1º narrows it to the IRPJ part (the app follows the
+resolution); and art. 6º-A §3º keeps profits from results up to 2025, approved by 31/12/2025, out of the
+withholding (now in the warning). The list is empty and the pre-deploy test passes; a rule read only in a
+compilation goes back into it.
+
 ## 25. Holidays fall back to a local calculation instead of weekends only
 
 **Context.** Decision 11 made the deadline of personal bills fall back to weekends only when the
