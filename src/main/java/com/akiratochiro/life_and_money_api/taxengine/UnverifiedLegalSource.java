@@ -16,7 +16,11 @@ public enum UnverifiedLegalSource {
     RES_CGSN_140_ART_40_PAR_3("DAS e DAS-MEI sem expediente bancário no dia 20: próximo dia útil"),
     RES_CGSN_140_ART_72("DEFIS: até 31 de março do ano seguinte"),
     RES_CGSN_140_ART_109("DASN-SIMEI: até o último dia de maio"),
-    LC_123_ART_18A_PAR_7("MEI: excesso de até 20% sai do MEI em janeiro seguinte; acima disso, retroativo");
+    LC_123_ART_18A_PAR_7("MEI: excesso de até 20% sai do MEI em janeiro seguinte; acima disso, retroativo"),
+    LEI_15270_SIMPLES("Retenção de 10% sobre o total de lucros acima de R$ 50 mil/mês, também no Simples (Perguntas e "
+            + "Respostas da RFB de 16/12/2025 e IN RFB 2.299/2025, lidos em artigos)"),
+    RES_CGSN_140_ART_145("Lucro isento sem contabilidade: presunção da Lei 9.249, art. 15 (32% serviços, 8% comércio) "
+            + "sobre a receita, menos o IRPJ do Simples; MEI pelos mesmos percentuais");
 
     private final String rule;
 

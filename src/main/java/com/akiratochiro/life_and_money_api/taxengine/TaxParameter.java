@@ -36,5 +36,7 @@ public enum TaxParameter {
     /** O ISS efetivo no Simples não passa de 5% (LC 123, art. 18, §1º-B). */
     SIMPLES_ISS_CAP,
     DIVIDENDS_MONTHLY_EXEMPTION,
-    DIVIDENDS_IRRF_RATE
+    DIVIDENDS_IRRF_RATE,
+    PRESUMED_PROFIT_SERVICES,
+    PRESUMED_PROFIT_TRADE
 }

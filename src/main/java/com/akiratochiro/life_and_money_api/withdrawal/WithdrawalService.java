@@ -1,14 +1,20 @@
 package com.akiratochiro.life_and_money_api.withdrawal;
 
+import com.akiratochiro.life_and_money_api.company.Company;
 import com.akiratochiro.life_and_money_api.company.CompanyRegime;
 import com.akiratochiro.life_and_money_api.company.CompanyService;
 import com.akiratochiro.life_and_money_api.company.LegalNature;
 import com.akiratochiro.life_and_money_api.company.Partner;
 import com.akiratochiro.life_and_money_api.company.PartnerService;
+import com.akiratochiro.life_and_money_api.company.TaxRegime;
+import com.akiratochiro.life_and_money_api.taxengine.Money;
 import com.akiratochiro.life_and_money_api.taxengine.ProLaboreCalculator;
+import com.akiratochiro.life_and_money_api.taxengine.ProfitDistribution;
+import com.akiratochiro.life_and_money_api.taxengine.TaxParameter;
 import com.akiratochiro.life_and_money_api.taxengine.TaxRules;
 import com.akiratochiro.life_and_money_api.taxengine.TaxTable;
 import com.akiratochiro.life_and_money_api.taxparam.TaxParameterService;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,9 +32,11 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Pró-labore (Fase 4) e, na Fase 6, distribuição de lucros. O pró-labore tem o INSS e o IRRF
- * calculados pelo motor tributário nos meses que o app calcula; nos outros (antes de 2026), eles são
- * informados como estão no holerite, para a folha do Fator R ter o histórico.
+ * Pró-labore (Fase 4) e distribuição de lucros (Fase 6). O pró-labore tem o INSS e o IRRF calculados
+ * pelo motor tributário nos meses que o app calcula; nos outros (antes de 2026), eles são informados
+ * como estão no holerite, para a folha do Fator R ter o histórico. A distribuição não tem INSS, tem o
+ * IRRF que o usuário informar, e volta com avisos (retenção acima de R$ 50 mil, limite de isenção) que
+ * nunca bloqueiam (decisão 28).
  */
 @Service
 public class WithdrawalService {
@@ -40,26 +48,33 @@ public class WithdrawalService {
     private final CompanyService companyService;
     private final PartnerService partnerService;
     private final TaxParameterService taxParameters;
+    /** Pelo provider: o implementador (em {@code tax}) depende deste service, e o construtor faria um ciclo de beans. */
+    private final ObjectProvider<ProfitExemptionLimits> exemptionLimits;
     private final Clock clock;
 
     public WithdrawalService(WithdrawalRepository withdrawals, ProLaborePlanRepository plans, CompanyService companyService,
-                             PartnerService partnerService, TaxParameterService taxParameters, Clock clock) {
+                             PartnerService partnerService, TaxParameterService taxParameters,
+                             ObjectProvider<ProfitExemptionLimits> exemptionLimits, Clock clock) {
         this.withdrawals = withdrawals;
         this.plans = plans;
         this.companyService = companyService;
         this.partnerService = partnerService;
         this.taxParameters = taxParameters;
+        this.exemptionLimits = exemptionLimits;
         this.clock = clock;
     }
 
     @Transactional
     public WithdrawalResponse create(Long userId, Long companyId, WithdrawalRequest request) {
-        companyService.getActiveOwned(userId, companyId);
-        if (request.kind() != WithdrawalKind.PRO_LABORE) {
-            throw rule("A distribuição de lucros chega na próxima fase do app.");
-        }
+        Company company = companyService.getActiveOwned(userId, companyId);
         Partner partner = partnerService.get(companyId, request.partnerId());
+        if (request.kind() == WithdrawalKind.DISTRIBUICAO_LUCROS) {
+            return createDistribution(userId, company, partner, request);
+        }
         YearMonth competence = request.competenceMonth();
+        if (competence == null) {
+            throw rule("Informe o mês da folha.");
+        }
         requireProLaboreAllowed(companyId, competence);
         requirePaymentDate(request.paymentDate(), competence);
         if (withdrawals.existsByPartnerIdAndKindAndCompetenceMonth(partner.getId(), WithdrawalKind.PRO_LABORE, competence.atDay(1))) {
@@ -80,8 +95,17 @@ public class WithdrawalService {
     /** Muda a data e o bruto; o INSS e o IRRF são recalculados (ou trocados pelos informados). */
     @Transactional
     public WithdrawalResponse update(Long userId, Long companyId, Long withdrawalId, WithdrawalRequest request) {
-        companyService.getActiveOwned(userId, companyId);
+        Company company = companyService.getActiveOwned(userId, companyId);
         Withdrawal withdrawal = find(companyId, withdrawalId);
+        if (request.kind() != withdrawal.getKind()) {
+            throw rule("O tipo da retirada não muda: exclua e registre de novo.");
+        }
+        if (withdrawal.getKind() == WithdrawalKind.DISTRIBUICAO_LUCROS) {
+            Taxes taxes = distributionTaxes(company, request);
+            withdrawal.change(request.paymentDate(), request.grossAmount(), BigDecimal.ZERO, taxes.irrf());
+            withdrawals.flush();
+            return distributionResponse(userId, withdrawal);
+        }
         YearMonth competence = withdrawal.getCompetenceMonth();
         requirePaymentDate(request.paymentDate(), competence);
         Taxes taxes = taxes(competence, request);
@@ -113,6 +137,82 @@ public class WithdrawalService {
     public PaidTotal paidBetween(Long companyId, LocalDate from, LocalDate to) {
         List<Withdrawal> paid = withdrawals.findAllByCompanyIdAndPaymentDateBetweenOrderByPaymentDateDescIdDesc(companyId, from, to);
         return new PaidTotal(paid.stream().map(Withdrawal::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add), paid.size());
+    }
+
+    // Distribuição de lucros
+
+    private WithdrawalResponse createDistribution(Long userId, Company company, Partner partner, WithdrawalRequest request) {
+        Taxes taxes = distributionTaxes(company, request);
+        Withdrawal withdrawal = withdrawals.saveAndFlush(new Withdrawal(userId, company.getId(), partner.getId(),
+                WithdrawalKind.DISTRIBUICAO_LUCROS, null, request.paymentDate(), request.grossAmount(), BigDecimal.ZERO, taxes.irrf()));
+        return distributionResponse(userId, withdrawal);
+    }
+
+    /** Sem INSS (lucro não é salário) e com o IRRF que o usuário informar, se houve retenção. */
+    private Taxes distributionTaxes(Company company, WithdrawalRequest request) {
+        if (request.inssAmount() != null && request.inssAmount().signum() > 0) {
+            throw rule("A distribuição de lucros não tem INSS.");
+        }
+        LocalDate date = request.paymentDate();
+        if (date.isAfter(LocalDate.now(clock))) {
+            throw rule("A data do pagamento não pode estar no futuro: a retirada registra o que já saiu da conta.");
+        }
+        if (date.isBefore(company.getOpeningDate())) {
+            throw rule("A data do pagamento é anterior à abertura da empresa.");
+        }
+        BigDecimal irrf = request.irrfAmount() == null ? BigDecimal.ZERO : request.irrfAmount();
+        if (irrf.compareTo(request.grossAmount()) >= 0) {
+            throw rule("O IRRF não pode ser igual ou maior que o valor distribuído.");
+        }
+        return new Taxes(BigDecimal.ZERO, irrf, true);
+    }
+
+    /**
+     * A resposta da distribuição com os avisos, que só saem ao salvar (o limite de isenção recalcula os
+     * DAS do ano, caro demais para cada linha da lista).
+     */
+    private WithdrawalResponse distributionResponse(Long userId, Withdrawal withdrawal) {
+        List<String> warnings = new ArrayList<>();
+        Long companyId = withdrawal.getCompanyId();
+        YearMonth month = YearMonth.from(withdrawal.getPaymentDate());
+
+        BigDecimal partnerMonth = distributions(companyId, month.atDay(1), month.atEndOfMonth()).stream()
+                .filter(w -> w.getPartnerId().equals(withdrawal.getPartnerId()))
+                .map(Withdrawal::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        tableFor(month).ifPresent(table -> {
+            BigDecimal suggested = ProfitDistribution.suggestedWithholding(partnerMonth, table);
+            if (suggested.signum() > 0) {
+                warnings.add("As distribuições de " + MONTH.format(month) + " a este sócio somam " + Money.brl(partnerMonth)
+                        + ", acima de " + Money.brl(table.get(TaxParameter.DIVIDENDS_MONTHLY_EXEMPTION))
+                        + ". A Receita entende que há retenção de 10% de IR sobre o total (" + Money.brl(suggested)
+                        + "), inclusive no Simples (Lei 15.270/2025). O tema é contestado na Justiça: confirme com o seu "
+                        + "contador e, se houve retenção, informe o IRRF.");
+            }
+        });
+
+        TaxRegime regime = companyService.regimeIn(companyId, month).map(CompanyRegime::getTaxRegime).orElse(null);
+        if (regime == TaxRegime.SIMPLES_NACIONAL || regime == TaxRegime.SIMEI) {
+            exemptionLimits.getObject().limitUntil(userId, companyId, month).ifPresent(limit -> {
+                BigDecimal year = distributions(companyId, LocalDate.of(month.getYear(), 1, 1), month.atEndOfMonth()).stream()
+                        .map(Withdrawal::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+                if (year.compareTo(limit) > 0) {
+                    warnings.add("As distribuições de " + month.getYear() + " até " + MONTH.format(month) + " (" + Money.brl(year)
+                            + ") passam do limite de isenção estimado sem contabilidade (" + Money.brl(limit) + "). Acima dele, "
+                            + "só é isento se a contabilidade da empresa mostrar lucro maior: confirme com o seu contador.");
+                }
+            });
+        } else if (regime != null) {
+            warnings.add("No Lucro Presumido e no Real, o limite de isenção depende da apuração da empresa, que o app não "
+                    + "calcula: confirme com o seu contador.");
+        }
+        return new WithdrawalResponse(withdrawal.getId(), withdrawal.getPartnerId(), withdrawal.getKind(), null,
+                withdrawal.getPaymentDate(), withdrawal.getGrossAmount(), withdrawal.getInssAmount(), withdrawal.getIrrfAmount(),
+                withdrawal.getNetAmount(), true, warnings);
+    }
+
+    private List<Withdrawal> distributions(Long companyId, LocalDate from, LocalDate to) {
+        return withdrawals.findAllByCompanyIdAndPaymentDateBetweenOrderByPaymentDateDescIdDesc(companyId, from, to).stream()
+                .filter(w -> w.getKind() == WithdrawalKind.DISTRIBUICAO_LUCROS).toList();
     }
 
     // Pró-labore planejado
@@ -255,8 +355,8 @@ public class WithdrawalService {
         CompanyRegime regime = companyService.regimeIn(companyId, competence)
                 .orElseThrow(() -> rule("O mês da folha é anterior à abertura da empresa."));
         if (regime.getLegalNature() == LegalNature.MEI) {
-            throw rule("O MEI não tem pró-labore: a contribuição do titular já está no DAS-MEI. A retirada como lucro "
-                    + "chega na próxima fase do app.");
+            throw rule("O MEI não tem pró-labore: a contribuição do titular já está no DAS-MEI. Registre a retirada como "
+                    + "distribuição de lucros.");
         }
     }
 
@@ -282,9 +382,10 @@ public class WithdrawalService {
                         + "aposentadoria.");
             }
         });
+        // A distribuição não tem o que calcular: "calculated" só é falso no pró-labore informado à mão.
         return new WithdrawalResponse(withdrawal.getId(), withdrawal.getPartnerId(), withdrawal.getKind(), competence,
                 withdrawal.getPaymentDate(), withdrawal.getGrossAmount(), withdrawal.getInssAmount(), withdrawal.getIrrfAmount(),
-                withdrawal.getNetAmount(), calculated, warnings);
+                withdrawal.getNetAmount(), calculated || withdrawal.getKind() == WithdrawalKind.DISTRIBUICAO_LUCROS, warnings);
     }
 
     private Withdrawal find(Long companyId, Long withdrawalId) {

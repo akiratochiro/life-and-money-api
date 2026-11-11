@@ -13,17 +13,18 @@ import java.time.YearMonth;
 public record WithdrawalRequest(
         @NotNull(message = "Escolha o sócio.") Long partnerId,
         @NotNull(message = "Escolha o tipo de retirada.") WithdrawalKind kind,
-        @Schema(description = "O mês da folha do pró-labore", example = "2026-11")
-        @NotNull(message = "Informe o mês da folha.") YearMonth competenceMonth,
+        @Schema(description = "O mês da folha; só no pró-labore (a distribuição de lucros não tem)", example = "2026-11")
+        YearMonth competenceMonth,
         @NotNull(message = "Informe a data do pagamento.") LocalDate paymentDate,
         @NotNull(message = "Informe o valor bruto.")
         @Positive(message = "O valor precisa ser maior que zero.")
         @Digits(integer = 17, fraction = 2, message = "Valor inválido.")
         BigDecimal grossAmount,
-        @Schema(description = "Só nos meses que o app não calcula (antes de 2026): o INSS retido, como no holerite")
+        @Schema(description = "Só no pró-labore dos meses que o app não calcula (antes de 2026): o INSS retido, como no holerite")
         @PositiveOrZero(message = "O valor não pode ser negativo.") @Digits(integer = 17, fraction = 2, message = "Valor inválido.")
         BigDecimal inssAmount,
-        @Schema(description = "Só nos meses que o app não calcula: o IRRF retido, como no holerite")
+        @Schema(description = "No pró-labore dos meses que o app não calcula, o IRRF do holerite; na distribuição de lucros, "
+                + "o IRRF retido, se houve (opcional)")
         @PositiveOrZero(message = "O valor não pode ser negativo.") @Digits(integer = 17, fraction = 2, message = "Valor inválido.")
         BigDecimal irrfAmount
 ) {

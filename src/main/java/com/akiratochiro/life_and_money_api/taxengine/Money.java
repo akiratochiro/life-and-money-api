@@ -32,4 +32,9 @@ public final class Money {
     public static BigDecimal min(BigDecimal a, BigDecimal b) {
         return a.compareTo(b) <= 0 ? a : b;
     }
+
+    /** "R$ 6.000,00" com espaço comum (o Intl usa o não separável), para mensagens ao usuário. */
+    public static String brl(BigDecimal value) {
+        return java.text.NumberFormat.getCurrencyInstance(java.util.Locale.of("pt", "BR")).format(value).replace('\u00a0', ' ');
+    }
 }

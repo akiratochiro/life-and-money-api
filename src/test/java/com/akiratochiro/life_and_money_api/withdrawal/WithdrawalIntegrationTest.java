@@ -79,7 +79,7 @@ class WithdrawalIntegrationTest extends IntegrationTest {
         proLabore(ana, company, me(ana, company), "2026-10", "2026-10-30", "3000")
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.detail").value("O MEI não tem pró-labore: a contribuição do titular já está no DAS-MEI. "
-                        + "A retirada como lucro chega na próxima fase do app."));
+                        + "Registre a retirada como distribuição de lucros."));
     }
 
     @Test

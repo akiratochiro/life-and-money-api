@@ -51,7 +51,9 @@ public final class Tables2026 {
                 entry(TaxParameter.SIMPLES_TOLERANCE, d("0.20")),
                 entry(TaxParameter.SIMPLES_ISS_CAP, d("0.05")),
                 entry(TaxParameter.DIVIDENDS_MONTHLY_EXEMPTION, d("50000.00")),
-                entry(TaxParameter.DIVIDENDS_IRRF_RATE, d("0.10"))),
+                entry(TaxParameter.DIVIDENDS_IRRF_RATE, d("0.10")),
+                entry(TaxParameter.PRESUMED_PROFIT_SERVICES, d("0.32")),
+                entry(TaxParameter.PRESUMED_PROFIT_TRADE, d("0.08"))),
                 List.of(
                         b(Annex.III, 1, "180000.00", "0.06", "0", "0.04", "0.035", "0.1282", "0.0278", "0.434", "0.335"),
                         b(Annex.III, 2, "360000.00", "0.112", "9360.00", "0.04", "0.035", "0.1405", "0.0305", "0.434", "0.32"),
