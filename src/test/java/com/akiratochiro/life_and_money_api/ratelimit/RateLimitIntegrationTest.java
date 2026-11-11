@@ -39,6 +39,26 @@ class RateLimitIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void theCnpjLookupIsLimitedPerUser() throws Exception {
+        // A consulta não lê o usuário no banco, então ids próprios bastam e não gastam o limite de cadastro.
+        Long ana = 900_001L;
+        Long bruno = 900_002L;
+        for (int attempt = 1; attempt <= 10; attempt++) {
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                            .get("/cnpj/{cnpj}", "11222333000181").with(asUser(ana)))
+                    .andExpect(status().isOk());
+        }
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/cnpj/{cnpj}", "11222333000181").with(asUser(ana)))
+                .andExpect(status().isTooManyRequests());
+        // O balde é de cada usuário.
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/cnpj/{cnpj}", "11222333000181").with(asUser(bruno)))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void theLoginIsLimitedPerIpAndAnswers429WithRetryAfter() throws Exception {
         for (int attempt = 1; attempt <= 20; attempt++) {
             login(fromCloudflare("203.0.113.10"), "ninguem" + attempt + "@test.dev")

@@ -53,12 +53,16 @@ public abstract class IntegrationTest {
     @Autowired
     protected FixedHolidaySource holidays;
 
+    @Autowired
+    protected FixedCnpjLookup cnpjs;
+
     /** O contexto é compartilhado entre as classes: o que um teste mexeu não vaza para o próximo. */
     @AfterEach
     void resetTestDoubles() {
         clock.reset();
         emails.clear();
         holidays.failing(false);
+        cnpjs.failing(false);
     }
 
     private static final Pattern CONFIRMATION_LINK = Pattern.compile("/confirm-email\\?token=([A-Za-z0-9_-]+)");

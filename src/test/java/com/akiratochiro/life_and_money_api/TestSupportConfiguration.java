@@ -9,7 +9,7 @@ import org.springframework.core.task.TaskExecutor;
 import java.time.ZoneId;
 
 /**
- * Substitui o relógio, o envio de e-mail, os feriados e a lista de senhas vazadas nos testes de integração. Os nomes dos beans são
+ * Substitui o relógio, o envio de e-mail, os feriados, a consulta de CNPJ e a lista de senhas vazadas nos testes de integração. Os nomes dos beans são
  * diferentes dos originais e o {@code @Primary} decide quem é injetado.
  */
 @TestConfiguration(proxyBeanMethods = false)
@@ -32,6 +32,13 @@ public class TestSupportConfiguration {
     @Primary
     FixedHolidaySource fixedHolidaySource() {
         return new FixedHolidaySource();
+    }
+
+    /** Os CNPJs vêm de uma lista fixa: nenhum teste depende da BrasilAPI no ar. */
+    @Bean
+    @Primary
+    FixedCnpjLookup fixedCnpjLookup() {
+        return new FixedCnpjLookup();
     }
 
     /** As senhas vazadas vêm de uma lista fixa: nenhum teste depende da Pwned Passwords no ar. */

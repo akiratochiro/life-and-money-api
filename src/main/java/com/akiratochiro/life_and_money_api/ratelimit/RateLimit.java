@@ -44,7 +44,13 @@ public enum RateLimit {
      * Tentativas de senha para excluir a conta. Por usuário: quem tem um access token roubado não
      * pode usar este endpoint para testar senhas.
      */
-    ACCOUNT_DELETION_PER_USER(5, Duration.ofMinutes(15));
+    ACCOUNT_DELETION_PER_USER(5, Duration.ofMinutes(15)),
+
+    /**
+     * Consultas de CNPJ no cadastro de empresa. Folgado para quem corrige um dígito e consulta de
+     * novo; barra um formulário em loop martelando a BrasilAPI, que é gratuita e não publica limite.
+     */
+    CNPJ_LOOKUP_PER_USER(10, Duration.ofMinutes(1));
 
     final long capacity;
     final Duration period;

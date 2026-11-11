@@ -21,7 +21,9 @@ spring:
     # Feriados por ano: um ano tem sempre os mesmos feriados, então a BrasilAPI é chamada no
     # máximo uma vez por ano consultado (até a instância reiniciar). Os 30 dias só existem para
     # uma correção nos dados da BrasilAPI um dia chegar aqui.
-    cache-names: holidays
+    # Os dados de um CNPJ entram no mesmo cache, só quando encontrados: o pré-preenchimento do
+    # cadastro não precisa de dados do dia.
+    cache-names: holidays,cnpj
     caffeine:
       spec: maximumSize=50,expireAfterWrite=30d
   docker:
@@ -71,5 +73,11 @@ app:
     # BrasilAPI: gratuita, sem chave. Timeout curto porque a tela de contas espera essa resposta;
     # se ela demorar ou falhar, os prazos consideram só os fins de semana.
     base-url: https://brasilapi.com.br/api/feriados/v1
+    connect-timeout: 2s
+    read-timeout: 3s
+  cnpj:
+    # BrasilAPI: gratuita, sem chave. Só pré-preenche o cadastro de empresa; se demorar ou falhar,
+    # o formulário segue à mão.
+    base-url: https://brasilapi.com.br/api/cnpj/v1
     connect-timeout: 2s
     read-timeout: 3s
