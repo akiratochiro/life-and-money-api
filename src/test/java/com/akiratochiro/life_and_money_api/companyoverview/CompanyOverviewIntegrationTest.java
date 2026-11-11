@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.ResultActions;
 import java.time.Instant;
 import java.util.List;
 
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.nullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
@@ -108,6 +109,20 @@ class CompanyOverviewIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$[3].dueDate").value("2026-12-05"))
                 .andExpect(jsonPath("$[3].month").value("2026-12"))
                 .andExpect(jsonPath("$[4].dueDate").value("2026-12-10"));
+    }
+
+    /** Em 01/12, o DAS de 11/2026 (sem receita, R$ 0,00, vence 21/12) não aparece; na aba Impostos, sim. */
+    @Test
+    void aZeroDasIsLeftOutOfUpcomingButStaysInTheTaxesTab() throws Exception {
+        Long ana = register("visao.daszero@test.dev");
+        Long company = exampleCompany(ana);
+        clock.setTo(Instant.parse("2026-12-01T15:00:00Z"));
+
+        mockMvc.perform(get("/companies/{id}/upcoming", company).with(asUser(ana)))
+                .andExpect(jsonPath("$[?(@.name == 'DAS do Simples Nacional')]").isEmpty())
+                .andExpect(jsonPath("$[?(@.name == 'Nuvem')]").isNotEmpty());
+        mockMvc.perform(get("/companies/{id}/taxes", company).param("month", "2026-12").with(asUser(ana)))
+                .andExpect(jsonPath("$.items[?(@.kind == 'DAS')].expectedAmount", contains(0.0)));
     }
 
     @Test

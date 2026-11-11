@@ -113,7 +113,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 - **Visão geral da empresa** (`companyoverview`, decisão 27): só lê e soma. Impostos pela **competência**
   (pago, senão previsto), despesas **sem a categoria Impostos** (o imposto pago já é despesa de Impostos),
   resultado = receita − despesas − impostos, retiradas à parte. Próximos vencimentos: atrasados de até 3
-  meses e os próximos 30 dias.
+  meses e os próximos 30 dias, sem o imposto de previsto zero (DAS de mês sem receita), que fica só na aba Impostos.
 - **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
   `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não

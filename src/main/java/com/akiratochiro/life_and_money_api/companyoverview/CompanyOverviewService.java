@@ -84,6 +84,14 @@ public class CompanyOverviewService {
     }
 
     /**
+     * O DAS de um mês sem receita sai R$ 0,00: não há guia a pagar, e listá-lo como atrasado só
+     * assusta. Ele some só daqui; a aba Impostos continua mostrando (decisão 27).
+     */
+    static boolean nothingToPay(TaxOccurrenceResponse tax) {
+        return tax.expectedAmount() != null && tax.expectedAmount().signum() == 0;
+    }
+
+    /**
      * O que falta pagar: os atrasados dos últimos 3 meses de vencimento e o que vence nos próximos 30
      * dias, impostos e despesas fixas juntos, os atrasados primeiro. A Fase 9 (calendário fiscal)
      * generaliza esta fonte.
@@ -99,7 +107,7 @@ public class CompanyOverviewService {
         List<UpcomingItem> items = new ArrayList<>();
         for (YearMonth month = first; !month.isAfter(last); month = month.plusMonths(1)) {
             for (TaxOccurrenceResponse tax : taxService.month(userId, companyId, month).items()) {
-                if (tax.status() != TaxOccurrenceResponse.Status.PAID && !tax.dueDate().isAfter(limit)) {
+                if (tax.status() != TaxOccurrenceResponse.Status.PAID && !tax.dueDate().isAfter(limit) && !nothingToPay(tax)) {
                     items.add(new UpcomingItem(UpcomingItem.Source.TAX, tax.name(), tax.dueDate(), tax.expectedAmount(),
                             tax.status() == TaxOccurrenceResponse.Status.OVERDUE ? UpcomingItem.Status.OVERDUE : UpcomingItem.Status.PENDING,
                             month));

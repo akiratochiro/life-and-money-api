@@ -753,6 +753,8 @@ services of `invoice`, `companyexpense`, `tax` and `withdrawal` (none depends on
 - **Upcoming** is relative to today: unpaid taxes and recurring expenses overdue up to 3 due months back
   and due within 30 days, overdue first. The 3-month window bounds the cost (each month of taxes
   recomputes the DAS). Phase 9 generalizes this source into the fiscal calendar.
+  A tax whose expected amount is exactly zero (the DAS of a month without revenue) is left out: there is
+  nothing to pay, and listing it as overdue only alarms. The Taxes tab still shows it.
 
 **Consequences.** One request per screen block, with the rules tested against Postgres instead of
 re-implemented in the front. A month's result closes with that month's revenue. The cost is recomputing
