@@ -91,11 +91,14 @@ public class AttachmentService {
         return filename == null || filename.isBlank() ? "enviado" : "\"" + cleanName(filename, FileType.XML) + "\"";
     }
 
-    private static String describe(Set<FileType> accepted) {
-        if (accepted.equals(Set.of(FileType.XML, FileType.PDF))) {
-            return "um XML ou PDF";
+    /** "um XML ou PDF", "um PDF, JPEG ou PNG": a lista dos tipos que aquele envio aceita, na ordem do enum. */
+    static String describe(Set<FileType> accepted) {
+        java.util.List<String> names = java.util.Arrays.stream(FileType.values()).filter(accepted::contains)
+                .map(FileType::name).toList();
+        if (names.size() == 1) {
+            return "um " + names.getFirst();
         }
-        return "um XML, PDF, JPEG ou PNG";
+        return "um " + String.join(", ", names.subList(0, names.size() - 1)) + " ou " + names.getLast();
     }
 
     private static String sha256(byte[] content) {

@@ -28,6 +28,8 @@ import com.akiratochiro.life_and_money_api.company.InvalidRegimeChangeException;
 import com.akiratochiro.life_and_money_api.company.NoRegimeChangeToUndoException;
 import com.akiratochiro.life_and_money_api.company.OpeningDateLockedException;
 import com.akiratochiro.life_and_money_api.companyexpense.ExpenseCategoryNotFoundException;
+import com.akiratochiro.life_and_money_api.companyexpense.ExpenseNotFoundException;
+import com.akiratochiro.life_and_money_api.companyexpense.InvalidExpenseException;
 import com.akiratochiro.life_and_money_api.companyexpense.InvalidExpenseCategoryException;
 import com.akiratochiro.life_and_money_api.goal.InvalidGoalDeadlineException;
 import com.akiratochiro.life_and_money_api.invoice.DuplicateInvoiceException;
@@ -234,6 +236,11 @@ public class GlobalExceptionHandler {
         return notFound("Categoria não encontrada", ex);
     }
 
+    @ExceptionHandler(ExpenseNotFoundException.class)
+    public ProblemDetail handleExpenseNotFound(ExpenseNotFoundException ex) {
+        return notFound("Despesa não encontrada", ex);
+    }
+
     @ExceptionHandler(InvoiceNotFoundException.class)
     public ProblemDetail handleInvoiceNotFound(InvoiceNotFoundException ex) {
         return notFound("Nota fiscal não encontrada", ex);
@@ -309,6 +316,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidExpenseCategoryException.class)
     public ProblemDetail handleInvalidExpenseCategory(InvalidExpenseCategoryException ex) {
         return ex.isConflict() ? conflict("Categoria indisponível", ex) : unprocessable("Categoria do sistema", ex);
+    }
+
+    @ExceptionHandler(InvalidExpenseException.class)
+    public ProblemDetail handleInvalidExpense(InvalidExpenseException ex) {
+        return ex.isConflict() ? conflict("Mês já pago", ex) : unprocessable("Despesa inválida", ex);
     }
 
     @ExceptionHandler(DuplicateInvoiceException.class)

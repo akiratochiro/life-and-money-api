@@ -114,6 +114,8 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.invoices.length()").value(1))
                 .andExpect(jsonPath("$.invoices[0].invoice.number").value("77"))
                 .andExpect(jsonPath("$.expenseCategories.length()").value(7))
+                .andExpect(jsonPath("$.recurringExpenses[0].history.length()").value(1))
+                .andExpect(jsonPath("$.companyExpenses.length()").value(1))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
@@ -138,7 +140,8 @@ class AccountIntegrationTest extends IntegrationTest {
                         "refresh_tokens", "password_reset_tokens",
                         "scheduled_bills", "scheduled_bill_terms", "bill_payments",
                         "companies", "company_regimes", "partners", "attachments", "invoices",
-                        "company_expense_categories");
+                        "company_expense_categories", "company_recurring_expenses",
+                        "company_recurring_expense_terms", "company_expenses");
 
         Map<String, Long> rows = new LinkedHashMap<>();
         rows.put("users", jdbc.queryForObject("select count(*) from users where id = ?", Long.class, userId));
@@ -200,6 +203,18 @@ class AccountIntegrationTest extends IntegrationTest {
                                  "serviceAmount": 3000, "netAmount": 2700}
                                 """.formatted(LocalDate.now(), LocalDate.now()).getBytes()))
                         .with(asUser(userId)))
+                .andExpect(status().isCreated());
+        // Uma despesa fixa paga no mês corrente: linhas em company_recurring_expenses, nos termos e em company_expenses.
+        Long software = jdbc.queryForObject("select id from company_expense_categories where company_id = ? and name = 'Software'",
+                Long.class, company);
+        Long recurring = idOf(mockMvc.perform(post("/companies/{id}/recurring-expenses", company).with(asUser(userId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name": "Nuvem", "amount": 120, "categoryId": %d, "dueDay": 1, "startMonth": "%s"}
+                                """.formatted(software, java.time.YearMonth.now())))
+                .andExpect(status().isCreated()).andReturn());
+        mockMvc.perform(post("/companies/{id}/recurring-expenses/{rid}/occurrences/{m}/payment", company, recurring,
+                        java.time.YearMonth.now()).with(asUser(userId)))
                 .andExpect(status().isCreated());
 
         login(email).andExpect(status().isOk());

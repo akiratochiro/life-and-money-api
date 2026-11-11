@@ -44,4 +44,12 @@ class FileTypeTest {
         assertThat(AttachmentService.cleanName("nota\r\nX-Header: 1.xml", FileType.XML)).isEqualTo("notaX-Header: 1.xml");
         assertThat(AttachmentService.cleanName("  ", FileType.PDF)).isEqualTo("arquivo.pdf");
     }
+
+    @Test
+    void theRefusalNamesOnlyTheAcceptedTypes() {
+        assertThat(AttachmentService.describe(java.util.Set.of(FileType.XML, FileType.PDF))).isEqualTo("um XML ou PDF");
+        assertThat(AttachmentService.describe(java.util.Set.of(FileType.PDF, FileType.JPEG, FileType.PNG)))
+                .isEqualTo("um PDF, JPEG ou PNG");
+        assertThat(AttachmentService.describe(java.util.Set.of(FileType.PDF))).isEqualTo("um PDF");
+    }
 }
