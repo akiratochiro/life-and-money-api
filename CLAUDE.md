@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -65,6 +65,16 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   nome, repetidos em `CHECK` no banco. Valor novo entra no enum, numa migration nova que muda o
   `CHECK`, e precisa de desenho no front (o tipo gerado obriga). Campo novo num contrato que o front
   em produção já usa entra **opcional, com padrão no servidor**, para a janela entre os deploys.
+- **Minha Empresa** (`company`, decisões 17 e 18; plano em `../implementacao_pj*.md`): a empresa é a
+  identidade, o enquadramento (`company_regimes`) tem vigência que **aceita meses passados e futuros**,
+  mas o histórico só cresce no fim e só a última mudança se desfaz. Toda feature da empresa passa
+  por `CompanyService.getOwned` (leitura) ou `getActiveOwned` (escrita: 409 se arquivada). As
+  combinações ficam em `RegimeRules` (pura) e em `CHECK`. Empresa é arquivada, nunca excluída. A
+  data de abertura só muda enquanto o enquadramento nunca mudou e nada a trava: feature nova que
+  dependa dela implementa `OpeningDateLock`. CNPJ em `Cnpj` (alfanumérico, ASCII − 48), guardado
+  sem pontuação. A consulta `GET /cnpj/{cnpj}` (BrasilAPI, `CnpjLookup`, cache só do encontrado,
+  `CNPJ_LOOKUP_PER_USER`) nunca falha: `available=false` e o cadastro segue. Os testes usam o
+  `FixedCnpjLookup`. Erro de campo da empresa é `InvalidCompanyDataException` (400 com `errors`).
 - **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
   `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não
@@ -152,9 +162,11 @@ reconfira antes de depender deles.
 - **Brevo** (e-mail, conferido em 30/10/2026): 300 e-mails/dia, sem limite mensal; envia sem
   domínio próprio, trocando o remetente. O Render gratuito bloqueia SMTP, então o envio é pela API
   HTTP (`email/BrevoEmailSender`).
-- **BrasilAPI** (feriados, conferido em 01/11/2026): gratuita, sem chave, open source; não publica
-  limite de requisições nem SLA. O cache por ano limita as chamadas a uma por ano consultado a cada
-  vez que a instância sobe.
+- **BrasilAPI** (feriados, conferido em 01/11/2026; CNPJ, em 11/11/2026): gratuita, sem chave, open
+  source; não publica limite de requisições nem SLA. O cache por ano limita as chamadas de feriados a
+  uma por ano consultado a cada vez que a instância sobe; o CNPJ tem cache do que foi encontrado e
+  10 consultas por minuto por usuário. Em 11/11/2026 ela respondeu 404 para o CNPJ alfanumérico de
+  exemplo da Receita.
 - **Cloudflare Workers:** 100.000 requisições/dia (zera à meia-noite UTC) e 10 ms de CPU por
   requisição, só para requisições que executam o script. Só `/api/*` executa (o proxy); os
   estáticos são gratuitos e ilimitados. Esperar a API não conta como CPU.

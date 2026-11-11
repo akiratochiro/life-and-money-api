@@ -62,6 +62,12 @@ account only ever sees its own data.
   of it
 - **Archiving a category ends its budget and its bills** through a domain event, so no dead line
   is left behind
+- **Companies ("Minha Empresa")**: a user's own companies, with an **effective-dated tax regime**
+  (legal nature, tax regime, Simples annex setting, MEI activity) whose history only grows at the end,
+  can be registered in the past or scheduled in the future, and keeps old months with the regime of
+  their time; legal combinations checked in code and again in the database, alphanumeric CNPJs
+  (July 2026 rule) validated, partners, archiving, and a CNPJ lookup through the BrasilAPI that
+  pre-fills the form and never blocks it
 
 ## Tech stack
 
@@ -129,6 +135,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Goals | `POST /goals` · `GET /goals` · `PUT /goals/{id}` · `DELETE /goals/{id}` |
 | Bills | `POST /bills` · `GET /bills` · `PUT /bills/{id}` · `DELETE /bills/{id}` · `GET /bills/occurrences?month=YYYY-MM` · `GET /bills/upcoming` · `POST /bills/{id}/occurrences/{month}/payment` · `DELETE /bills/{id}/occurrences/{month}/payment` |
 | Dashboard | `GET /dashboard/expenses-by-category?month=` · `GET /dashboard/monthly-totals?months=` · `GET /dashboard/budget?month=` |
+| Companies | `POST /companies` · `GET /companies` · `GET /companies/{id}` · `PATCH /companies/{id}` · `POST /companies/{id}/archive` · `POST /companies/{id}/unarchive` · `GET /companies/{id}/regimes` · `POST /companies/{id}/regimes` · `DELETE /companies/{id}/regimes/latest` · `GET/POST /companies/{id}/partners` · `PATCH/DELETE /companies/{id}/partners/{partnerId}` · `GET /cnpj/{cnpj}` |
 | Holidays | `GET /holidays?year=YYYY` |
 | Health | `GET /health` |
 

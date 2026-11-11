@@ -460,3 +460,69 @@ reveals who is registered. The price is friction: a new user has to open their i
 the app, each sign-up spends one of Brevo's 300 free emails a day, and a pending row with a BCrypt
 hash lives for up to 24 hours (expired rows are deleted on the next sign-up). The integration tests'
 `register()` helper goes through the email link like a real user, so every test exercises the flow.
+
+## 17. Companies with an effective-dated tax regime that accepts past months
+
+**Context.** The "Minha Empresa" module needs each company's tax regime (legal nature, regime,
+Simples annex setting and MEI activity) month by month, because taxes are computed per month of
+competence and a company changes regime over its life (an MEI that grows into a Simples company). A
+user who registers today a company opened in 2023 also needs its past to be right, or the 12-month
+revenue and the taxes of old months would be computed with the wrong regime.
+
+**Decision.** `companies` is the identity and `company_regimes` holds the regime with effective
+dating, like the budget (decision 2) and the bill terms (decision 9). Unlike the budget, which always
+starts in the current month, a regime change takes a `validFrom` month that may be in the past or in
+the future, with two rules that keep the history from being rewritten:
+
+- the history only grows at the end: a change must start after the current regime started, and it
+  closes the current one in the month before;
+- the only correction is undoing the latest change (`DELETE /companies/{id}/regimes/latest`), which
+  reopens the previous one. Fixing an older period means undoing, one by one, the changes after it.
+
+The first regime starts in the month of the opening date. The opening date can still be edited while
+nothing depends on it: while the regime never changed and no invoice exists. Invoices arrive in phase
+2, so `company` declares an `OpeningDateLock` interface that other features implement, the same
+dependency inversion as `GoalOwnershipChecker` (decision 3). The response carries
+`openingDateEditable` so the form can warn about the rule and lock the field.
+
+The allowed combinations live in `RegimeRules`, a pure function with its own tests, and again in
+`CHECK` constraints: MEI if and only if SIMEI, an annex setting if and only if Simples, an activity if
+and only if MEI (it sets the DAS-MEI amount). Companies are archived, never deleted, since their
+history feeds taxes and reports; an archived company is read-only and can be unarchived.
+
+**Consequences.** Past months always keep the regime of their time, and the user can still register
+a long history after the fact. The options considered were editing any period in place (flexible,
+but every past tax computation could silently change) and only allowing changes from the current
+month on, like the budget (simpler, but a company with history could never be registered correctly).
+The cost is that a mistake in an old period takes several undos to fix. Undoing deletes the latest row
+and flushes before reopening the previous one, because Hibernate runs updates before deletes and
+the partial unique index would briefly see two open regimes.
+
+The CNPJ is stored as `CHAR(14)` and validated with the new rule for alphanumeric CNPJs, issued since
+July 2026: each character is worth its ASCII code minus 48, and the same modulo 11 then validates the
+old numeric ones too.
+
+## 18. CNPJ lookup through the API, never blocking the registration
+
+**Context.** Typing a CNPJ could fill the company's legal name, opening date and legal nature. The
+BrasilAPI (`/api/cnpj/v1/{cnpj}`) serves the Receita's open data for free, without a key, and
+publishes no rate limit or SLA.
+
+**Decision.** The front calls `GET /cnpj/{cnpj}` on our API, which calls the BrasilAPI with
+`RestClient` and short timeouts (2 s to connect, 3 s to read), the same shape as the holidays
+(decision 11). The answer is always `200`: `found=false` when the BrasilAPI does not know the CNPJ,
+and `available=false` when it failed, so the form simply goes on by hand. Only found results are
+cached, a limit of 10 lookups per minute per user protects the BrasilAPI from a form in a loop, and
+the integration tests use a fixed `CnpjLookup`, never the network.
+
+The Receita's legal nature code only fills the form when it is unambiguous: 213-5 is MEI or EI
+according to the MEI option, 206-2 is SLU with one partner and LTDA with more, the old EIRELI (230-5)
+is an SLU, and both simple societies map to `SOCIEDADE_SIMPLES`. Anything else is left for the user,
+because a wrong legal nature means wrong taxes.
+
+**Consequences.** Going through the API keeps third parties out of the browser (the privacy page
+stays true with one more line), lets the lookup be cached and limited, and keeps the front's rule of
+calling only `/api`. The cost is one more external dependency, contained like the holidays: nothing
+breaks when it is down. On 11/11/2026 the BrasilAPI answered `404` for the Receita's own alphanumeric
+example, so it is not confirmed to know the new format yet; the form says so instead of implying the
+CNPJ is wrong. The CNPJ travels without the slash, which would split the URL path.
