@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.account;
 
+import com.akiratochiro.life_and_money_api.attachment.AttachmentService;
 import com.akiratochiro.life_and_money_api.auth.AccountCredentials;
 import com.akiratochiro.life_and_money_api.bill.BillService;
 import com.akiratochiro.life_and_money_api.budget.BudgetItemResponse;
@@ -8,6 +9,7 @@ import com.akiratochiro.life_and_money_api.category.CategoryResponse;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
 import com.akiratochiro.life_and_money_api.company.CompanyService;
 import com.akiratochiro.life_and_money_api.goal.GoalService;
+import com.akiratochiro.life_and_money_api.invoice.InvoiceService;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimit;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimiter;
 import com.akiratochiro.life_and_money_api.transaction.TransactionResponse;
@@ -36,6 +38,8 @@ class AccountService {
     private final GoalService goalService;
     private final BillService billService;
     private final CompanyService companyService;
+    private final InvoiceService invoiceService;
+    private final AttachmentService attachmentService;
     private final AccountCredentials accountCredentials;
     private final RateLimiter rateLimiter;
     private final Clock clock;
@@ -47,6 +51,8 @@ class AccountService {
                    GoalService goalService,
                    BillService billService,
                    CompanyService companyService,
+                   InvoiceService invoiceService,
+                   AttachmentService attachmentService,
                    AccountCredentials accountCredentials,
                    RateLimiter rateLimiter,
                    Clock clock) {
@@ -57,6 +63,8 @@ class AccountService {
         this.goalService = goalService;
         this.billService = billService;
         this.companyService = companyService;
+        this.invoiceService = invoiceService;
+        this.attachmentService = attachmentService;
         this.accountCredentials = accountCredentials;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
@@ -73,7 +81,8 @@ class AccountService {
                 budgetService.listAll(userId).stream().map(BudgetItemResponse::from).toList(),
                 goalService.list(userId),
                 billService.listAll(userId),
-                companyService.listAll(userId));
+                companyService.listAll(userId),
+                invoiceService.listAll(userId));
     }
 
     /**
@@ -92,6 +101,8 @@ class AccountService {
         rateLimiter.consume(RateLimit.ACCOUNT_DELETION_PER_USER, String.valueOf(userId));
         userService.verifyPassword(userId, password);
 
+        invoiceService.deleteAllOf(userId);
+        attachmentService.deleteAllOf(userId);
         companyService.deleteAllOf(userId);
         billService.deleteAllOf(userId);
         transactionService.deleteAllOf(userId);

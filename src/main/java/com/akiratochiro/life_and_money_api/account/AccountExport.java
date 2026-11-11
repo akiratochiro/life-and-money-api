@@ -5,6 +5,7 @@ import com.akiratochiro.life_and_money_api.budget.BudgetItemResponse;
 import com.akiratochiro.life_and_money_api.category.CategoryResponse;
 import com.akiratochiro.life_and_money_api.company.CompanyExport;
 import com.akiratochiro.life_and_money_api.goal.SavingsGoalResponse;
+import com.akiratochiro.life_and_money_api.invoice.InvoiceExport;
 import com.akiratochiro.life_and_money_api.transaction.TransactionResponse;
 import com.akiratochiro.life_and_money_api.user.UserResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -29,6 +30,8 @@ public record AccountExport(
         @Schema(requiredMode = REQUIRED, description = "Contas a pagar e a receber, com todo o histórico")
         List<BillExport> bills,
         @Schema(requiredMode = REQUIRED, description = "Empresas, arquivadas inclusive, com o histórico de enquadramento e os sócios")
-        List<CompanyExport> companies
+        List<CompanyExport> companies,
+        @Schema(requiredMode = REQUIRED, description = "Os dados das notas fiscais; os arquivos originais são baixados na tela")
+        List<InvoiceExport> invoices
 ) {
 }

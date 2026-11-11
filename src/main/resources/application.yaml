@@ -13,6 +13,12 @@ server:
 spring:
   application:
     name: life-and-money-api
+  servlet:
+    multipart:
+      # Notas fiscais e comprovantes: 2 MB por arquivo, até 10 arquivos por envio. O padrão do
+      # Spring (1 MB) recusaria um PDF comum; acima disso, a resposta é 413 em português.
+      max-file-size: 2MB
+      max-request-size: 21MB
   jpa:
     hibernate:
       ddl-auto: validate

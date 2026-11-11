@@ -111,6 +111,8 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.companies[0].name").value("Estúdio " + ana))
                 .andExpect(jsonPath("$.companies[0].regimes.length()").value(1))
                 .andExpect(jsonPath("$.companies[0].partners[0].me").value(true))
+                .andExpect(jsonPath("$.invoices.length()").value(1))
+                .andExpect(jsonPath("$.invoices[0].invoice.number").value("77"))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
@@ -134,7 +136,7 @@ class AccountIntegrationTest extends IntegrationTest {
                 .contains("categories", "transactions", "budget_items", "savings_goals",
                         "refresh_tokens", "password_reset_tokens",
                         "scheduled_bills", "scheduled_bill_terms", "bill_payments",
-                        "companies", "company_regimes", "partners");
+                        "companies", "company_regimes", "partners", "attachments", "invoices");
 
         Map<String, Long> rows = new LinkedHashMap<>();
         rows.put("users", jdbc.queryForObject("select count(*) from users where id = ?", Long.class, userId));
@@ -184,6 +186,18 @@ class AccountIntegrationTest extends IntegrationTest {
                                 {"name": "Estúdio %d", "emoji": "💼", "openingDate": "2024-03-10",
                                  "legalNature": "MEI", "taxRegime": "SIMEI", "meiActivity": "SERVICOS"}
                                 """.formatted(userId)))
+                .andExpect(status().isCreated());
+        Long company = jdbc.queryForObject("select id from companies where user_id = ?", Long.class, userId);
+        // Uma nota digitada à mão, com um PDF sem texto anexado: cria linha em invoices e attachments.
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/companies/{id}/invoices", company)
+                        .file(new org.springframework.mock.web.MockMultipartFile("file", "nota.pdf", "application/pdf",
+                                com.akiratochiro.life_and_money_api.invoice.TestPdfs.withLines()))
+                        .file(new org.springframework.mock.web.MockMultipartFile("data", "", "application/json", """
+                                {"number": "77", "issueDate": "%s", "competenceDate": "%s",
+                                 "serviceAmount": 3000, "netAmount": 2700}
+                                """.formatted(LocalDate.now(), LocalDate.now()).getBytes()))
+                        .with(asUser(userId)))
                 .andExpect(status().isCreated());
 
         login(email).andExpect(status().isOk());

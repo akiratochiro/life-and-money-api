@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.web;
 
+import com.akiratochiro.life_and_money_api.attachment.InvalidAttachmentException;
 import com.akiratochiro.life_and_money_api.auth.BreachedPasswordException;
 import com.akiratochiro.life_and_money_api.auth.InvalidConfirmationTokenException;
 import com.akiratochiro.life_and_money_api.auth.InvalidPasswordResetTokenException;
@@ -27,6 +28,10 @@ import com.akiratochiro.life_and_money_api.company.InvalidRegimeChangeException;
 import com.akiratochiro.life_and_money_api.company.NoRegimeChangeToUndoException;
 import com.akiratochiro.life_and_money_api.company.OpeningDateLockedException;
 import com.akiratochiro.life_and_money_api.goal.InvalidGoalDeadlineException;
+import com.akiratochiro.life_and_money_api.invoice.DuplicateInvoiceException;
+import com.akiratochiro.life_and_money_api.invoice.InvalidInvoiceException;
+import com.akiratochiro.life_and_money_api.invoice.InvoiceNotFoundException;
+import com.akiratochiro.life_and_money_api.invoice.InvoiceParseException;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimitExceededException;
 import com.akiratochiro.life_and_money_api.shared.GoalNotFoundException;
 import com.akiratochiro.life_and_money_api.transaction.GoalRequiresSavingCategoryException;
@@ -48,6 +53,8 @@ import tools.jackson.databind.exc.InvalidFormatException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -125,6 +132,14 @@ public class GlobalExceptionHandler {
                 HttpStatus.BAD_REQUEST, "Confira os campos destacados e tente de novo.");
         problem.setTitle("Dados inválidos");
         problem.setProperty("errors", Map.of(ex.getField(), ex.getMessage()));
+        return problem;
+    }
+
+    /** Um envio sem a parte do arquivo: o formulário mandou o pedido sem anexar nada. */
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ProblemDetail handleMissingPart(MissingServletRequestPartException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Escolha um arquivo para enviar.");
+        problem.setTitle("Arquivo ausente");
         return problem;
     }
 
@@ -206,6 +221,11 @@ public class GlobalExceptionHandler {
         return notFound("Pagamento não encontrado", ex);
     }
 
+    @ExceptionHandler(InvoiceNotFoundException.class)
+    public ProblemDetail handleInvoiceNotFound(InvoiceNotFoundException ex) {
+        return notFound("Nota fiscal não encontrada", ex);
+    }
+
     @ExceptionHandler(CompanyNotFoundException.class)
     public ProblemDetail handleCompanyNotFound(CompanyNotFoundException ex) {
         return notFound("Empresa não encontrada", ex);
@@ -273,6 +293,11 @@ public class GlobalExceptionHandler {
         return conflict("Nada para desfazer", ex);
     }
 
+    @ExceptionHandler(DuplicateInvoiceException.class)
+    public ProblemDetail handleDuplicateInvoice(DuplicateInvoiceException ex) {
+        return conflict("Nota repetida", ex);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         // A mensagem do banco não vai para o usuário, mas precisa ficar no log para investigação.
@@ -319,6 +344,32 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidPartnerChangeException.class)
     public ProblemDetail handleInvalidPartnerChange(InvalidPartnerChangeException ex) {
         return unprocessable("Mudança de sócios inválida", ex);
+    }
+
+    @ExceptionHandler(InvalidAttachmentException.class)
+    public ProblemDetail handleInvalidAttachment(InvalidAttachmentException ex) {
+        return unprocessable("Arquivo recusado", ex);
+    }
+
+    @ExceptionHandler(InvoiceParseException.class)
+    public ProblemDetail handleInvoiceParse(InvoiceParseException ex) {
+        return unprocessable("Nota não reconhecida", ex);
+    }
+
+    @ExceptionHandler(InvalidInvoiceException.class)
+    public ProblemDetail handleInvalidInvoice(InvalidInvoiceException ex) {
+        return unprocessable("Nota recusada", ex);
+    }
+
+    // 413
+
+    /** O Spring recusa o envio antes de chegar ao controller, pelo limite de multipart da configuração. */
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ProblemDetail handleMaxUploadSize(MaxUploadSizeExceededException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONTENT_TOO_LARGE,
+                "Cada arquivo pode ter no máximo 2 MB, e cada envio, até 10 arquivos.");
+        problem.setTitle("Arquivo grande demais");
+        return problem;
     }
 
     // 429
