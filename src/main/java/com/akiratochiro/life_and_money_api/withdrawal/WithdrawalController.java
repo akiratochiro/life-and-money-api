@@ -43,9 +43,19 @@ public class WithdrawalController {
 
     @DeleteMapping("/withdrawals/{withdrawalId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(operationId = "deleteWithdrawal")
-    public void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId, @PathVariable Long withdrawalId) {
-        service.delete(CurrentUser.id(jwt), companyId, withdrawalId);
+    @Operation(operationId = "deleteWithdrawal",
+            summary = "Exclui a retirada; com deletePersonal, também o lançamento nas finanças pessoais (sem ele, o lançamento fica)")
+    public void delete(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId, @PathVariable Long withdrawalId,
+                       @RequestParam(defaultValue = "false") boolean deletePersonal) {
+        service.delete(CurrentUser.id(jwt), companyId, withdrawalId, deletePersonal);
+    }
+
+    @PostMapping("/withdrawals/{withdrawalId}/personal-transaction")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "launchWithdrawal", summary = "Lança o líquido da retirada do \"sou eu\" como receita nas finanças pessoais")
+    public WithdrawalResponse launch(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId, @PathVariable Long withdrawalId,
+                                     @RequestBody(required = false) LaunchRequest request) {
+        return service.launch(CurrentUser.id(jwt), companyId, withdrawalId, request == null ? null : request.categoryId());
     }
 
     @GetMapping("/pro-labore-plans")

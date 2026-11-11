@@ -42,6 +42,7 @@ import com.akiratochiro.life_and_money_api.shared.GoalNotFoundException;
 import com.akiratochiro.life_and_money_api.tax.InvalidTaxOperationException;
 import com.akiratochiro.life_and_money_api.tax.TaxNotFoundException;
 import com.akiratochiro.life_and_money_api.transaction.GoalRequiresSavingCategoryException;
+import com.akiratochiro.life_and_money_api.transaction.LinkedTransactionException;
 import com.akiratochiro.life_and_money_api.transaction.TransactionNotFoundException;
 import com.akiratochiro.life_and_money_api.user.EmailAlreadyInUseException;
 import com.akiratochiro.life_and_money_api.user.IncorrectPasswordException;
@@ -248,6 +249,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(WithdrawalNotFoundException.class)
     public ProblemDetail handleWithdrawalNotFound(WithdrawalNotFoundException ex) {
         return notFound("Retirada não encontrada", ex);
+    }
+
+    @ExceptionHandler(LinkedTransactionException.class)
+    public ProblemDetail handleLinkedTransaction(LinkedTransactionException ex) {
+        return unprocessable("Lançamento ligado a outra origem", ex);
     }
 
     @ExceptionHandler(TaxNotFoundException.class)

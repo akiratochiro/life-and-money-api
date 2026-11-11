@@ -35,6 +35,16 @@ public class CategoryService {
         return categoryRepository.save(new Category(userId, normalizedName, type, color, icon));
     }
 
+    /**
+     * A categoria ativa com esse nome e tipo, ou uma nova. Para as categorias que o app cria quando
+     * precisa (o "Pró-labore" do primeiro lançamento de uma retirada), sem duplicar a que o usuário já tem.
+     */
+    @Transactional
+    public Category findOrCreateActive(Long userId, String name, CategoryType type, CategoryColor color, CategoryIcon icon) {
+        return categoryRepository.findFirstByUserIdAndTypeAndNameIgnoreCaseAndArchivedFalse(userId, type, Category.normalizeName(name))
+                .orElseGet(() -> create(userId, name, type, color, icon));
+    }
+
     /** Edição parcial: o que vier nulo fica como está. */
     @Transactional
     public Category update(Long userId, Long categoryId, String newName, CategoryColor color, CategoryIcon icon) {

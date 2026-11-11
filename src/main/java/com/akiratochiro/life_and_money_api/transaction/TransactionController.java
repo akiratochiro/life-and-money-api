@@ -32,18 +32,20 @@ public class TransactionController {
     @GetMapping
     public List<TransactionResponse> list(@AuthenticationPrincipal Jwt jwt,
                                           @RequestParam YearMonth month) {
-        return transactionService.list(CurrentUser.id(jwt), month).stream()
-                .map(TransactionResponse::from)
-                .toList();
+        Long userId = CurrentUser.id(jwt);
+        List<Transaction> transactions = transactionService.list(userId, month);
+        var origins = transactionService.originsOf(userId, transactions.stream().map(Transaction::getId).toList());
+        return transactions.stream().map(t -> TransactionResponse.from(t, origins.get(t.getId()))).toList();
     }
 
     @PutMapping("/{id}")
     public TransactionResponse update(@AuthenticationPrincipal Jwt jwt,
                                       @PathVariable Long id,
                                       @Valid @RequestBody TransactionRequest request) {
-        Transaction transaction = transactionService.update(CurrentUser.id(jwt), id,
+        Long userId = CurrentUser.id(jwt);
+        Transaction transaction = transactionService.update(userId, id,
                 request.categoryId(), request.goalId(), request.amount(), request.transactionDate(), request.description());
-        return TransactionResponse.from(transaction);
+        return TransactionResponse.from(transaction, transactionService.originsOf(userId, List.of(id)).get(id));
     }
 
     @DeleteMapping("/{id}")

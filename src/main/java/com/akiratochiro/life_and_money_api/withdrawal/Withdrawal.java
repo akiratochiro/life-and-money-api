@@ -70,4 +70,16 @@ public class Withdrawal {
     public BigDecimal getIrrfAmount() { return irrfAmount; }
     public BigDecimal getNetAmount() { return netAmount; }
     public Long getPersonalTransactionId() { return personalTransactionId; }
+    public Long getUserId() { return userId; }
+
+    /** Lançada nas finanças pessoais (Fase 6): a transação de receita com o líquido. */
+    void linkTo(Long transactionId) {
+        this.personalTransactionId = transactionId;
+        this.updatedAt = Instant.now();
+    }
+
+    void unlink() {
+        this.personalTransactionId = null;
+        this.updatedAt = Instant.now();
+    }
 }

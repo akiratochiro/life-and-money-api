@@ -16,10 +16,15 @@ public record TransactionResponse(
         @Schema(requiredMode = REQUIRED) LocalDate transactionDate,
         String description,
         @Schema(requiredMode = REQUIRED) Instant createdAt,
-        @Schema(requiredMode = REQUIRED) Instant updatedAt
+        @Schema(requiredMode = REQUIRED) Instant updatedAt,
+        @Schema(description = "Quando a transação veio de outra feature (uma retirada da empresa)") TransactionOrigin origin
 ) {
 
     public static TransactionResponse from(Transaction transaction) {
+        return from(transaction, null);
+    }
+
+    public static TransactionResponse from(Transaction transaction, TransactionOrigin origin) {
         return new TransactionResponse(
                 transaction.getId(),
                 transaction.getCategoryId(),
@@ -28,7 +33,8 @@ public record TransactionResponse(
                 transaction.getTransactionDate(),
                 transaction.getDescription(),
                 transaction.getCreatedAt(),
-                transaction.getUpdatedAt()
+                transaction.getUpdatedAt(),
+                origin
         );
     }
 }

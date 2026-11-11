@@ -21,6 +21,7 @@ public record WithdrawalResponse(
         @Schema(requiredMode = REQUIRED) BigDecimal netAmount,
         @Schema(requiredMode = REQUIRED, description = "Falso quando o INSS e o IRRF foram informados (mês que o app não calcula)")
         boolean calculated,
-        @Schema(requiredMode = REQUIRED) List<String> warnings
+        @Schema(requiredMode = REQUIRED) List<String> warnings,
+        @Schema(description = "A transação de receita nas finanças pessoais, quando lançada") Long personalTransactionId
 ) {
 }

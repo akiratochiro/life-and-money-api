@@ -100,7 +100,7 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(header().string(HttpHeaders.CONTENT_DISPOSITION,
                         org.hamcrest.Matchers.matchesPattern("attachment; filename=\"life-and-money-\\d{4}-\\d{2}-\\d{2}\\.json\"")))
                 .andExpect(jsonPath("$.profile.email").value("export.ana@test.dev"))
-                .andExpect(jsonPath("$.transactions.length()").value(3))
+                .andExpect(jsonPath("$.transactions.length()").value(4)) // inclui o pró-labore lançado
                 .andExpect(jsonPath("$.budgetItems.length()").value(1))
                 .andExpect(jsonPath("$.goals.length()").value(1))
                 .andExpect(jsonPath("$.goals[0].saved").value(300.00))
@@ -118,6 +118,7 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.companyExpenses.length()").value(2)) // a fixa paga e o DARF pago
                 .andExpect(jsonPath("$.proLaborePlans.length()").value(1))
                 .andExpect(jsonPath("$.withdrawals[0].inssAmount").value(330.00))
+                .andExpect(jsonPath("$.withdrawals[0].personalTransactionId").isNumber())
                 .andExpect(jsonPath("$.taxObligations.length()").value(5))
                 .andExpect(jsonPath("$.taxPayments.length()").value(1))
                 .andReturn();
@@ -232,6 +233,11 @@ class AccountIntegrationTest extends IntegrationTest {
                                 {"partnerId": %d, "kind": "PRO_LABORE", "competenceMonth": "2026-10",
                                  "paymentDate": "2026-10-30", "grossAmount": 3000}
                                 """.formatted(partner)))
+                .andExpect(status().isCreated());
+        // Lançado nas finanças pessoais (Fase 6): a retirada aponta para uma transação, e a exclusão precisa
+        // apagar a retirada antes dela.
+        Long withdrawal = jdbc.queryForObject("select id from withdrawals where company_id = ?", Long.class, company);
+        mockMvc.perform(post("/companies/{id}/withdrawals/{wid}/personal-transaction", company, withdrawal).with(asUser(userId)))
                 .andExpect(status().isCreated());
         // O DARF desse pró-labore pago: linha em tax_payments (as obrigações nascem com a empresa).
         Long darf = jdbc.queryForObject("select id from tax_obligations where company_id = ? and kind = 'DARF_PREVIDENCIARIO'",

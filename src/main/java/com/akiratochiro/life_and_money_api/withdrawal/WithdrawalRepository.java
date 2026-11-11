@@ -13,6 +13,10 @@ interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
 
     Optional<Withdrawal> findByIdAndCompanyId(Long id, Long companyId);
 
+    Optional<Withdrawal> findByPersonalTransactionId(Long transactionId);
+
+    List<Withdrawal> findAllByUserIdAndPersonalTransactionIdIn(Long userId, java.util.Collection<Long> transactionIds);
+
     List<Withdrawal> findAllByCompanyIdAndPaymentDateBetweenOrderByPaymentDateDescIdDesc(Long companyId, LocalDate from, LocalDate to);
 
     boolean existsByPartnerIdAndKindAndCompetenceMonth(Long partnerId, WithdrawalKind kind, LocalDate competenceMonth);

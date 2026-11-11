@@ -13,7 +13,15 @@ import com.akiratochiro.life_and_money_api.taxengine.ProfitDistribution;
 import com.akiratochiro.life_and_money_api.taxengine.TaxParameter;
 import com.akiratochiro.life_and_money_api.taxengine.TaxRules;
 import com.akiratochiro.life_and_money_api.taxengine.TaxTable;
+import com.akiratochiro.life_and_money_api.category.Category;
+import com.akiratochiro.life_and_money_api.category.CategoryColor;
+import com.akiratochiro.life_and_money_api.category.CategoryIcon;
+import com.akiratochiro.life_and_money_api.category.CategoryService;
+import com.akiratochiro.life_and_money_api.category.CategoryType;
 import com.akiratochiro.life_and_money_api.taxparam.TaxParameterService;
+import com.akiratochiro.life_and_money_api.transaction.Transaction;
+import com.akiratochiro.life_and_money_api.transaction.TransactionOrigin;
+import com.akiratochiro.life_and_money_api.transaction.TransactionService;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
@@ -50,11 +58,16 @@ public class WithdrawalService {
     private final TaxParameterService taxParameters;
     /** Pelo provider: o implementador (em {@code tax}) depende deste service, e o construtor faria um ciclo de beans. */
     private final ObjectProvider<ProfitExemptionLimits> exemptionLimits;
+    private final TransactionService transactionService;
+    private final CategoryService categoryService;
     private final Clock clock;
 
     public WithdrawalService(WithdrawalRepository withdrawals, ProLaborePlanRepository plans, CompanyService companyService,
                              PartnerService partnerService, TaxParameterService taxParameters,
-                             ObjectProvider<ProfitExemptionLimits> exemptionLimits, Clock clock) {
+                             ObjectProvider<ProfitExemptionLimits> exemptionLimits, TransactionService transactionService,
+                             CategoryService categoryService, Clock clock) {
+        this.transactionService = transactionService;
+        this.categoryService = categoryService;
         this.withdrawals = withdrawals;
         this.plans = plans;
         this.companyService = companyService;
@@ -104,19 +117,101 @@ public class WithdrawalService {
             Taxes taxes = distributionTaxes(company, request);
             withdrawal.change(request.paymentDate(), request.grossAmount(), BigDecimal.ZERO, taxes.irrf());
             withdrawals.flush();
+            syncPersonal(userId, withdrawal);
             return distributionResponse(userId, withdrawal);
         }
         YearMonth competence = withdrawal.getCompetenceMonth();
         requirePaymentDate(request.paymentDate(), competence);
         Taxes taxes = taxes(competence, request);
         withdrawal.change(request.paymentDate(), request.grossAmount(), taxes.inss(), taxes.irrf());
+        syncPersonal(userId, withdrawal);
         return response(withdrawal, taxes.calculated());
     }
 
+    /**
+     * Exclui a retirada. Lançada nas finanças pessoais, a transação vai junto só com
+     * {@code deletePersonal}; sem ele, fica, só perde a ligação (o front pergunta).
+     */
     @Transactional
-    public void delete(Long userId, Long companyId, Long withdrawalId) {
+    public void delete(Long userId, Long companyId, Long withdrawalId, boolean deletePersonal) {
         companyService.getActiveOwned(userId, companyId);
-        withdrawals.delete(find(companyId, withdrawalId));
+        Withdrawal withdrawal = find(companyId, withdrawalId);
+        Long transactionId = withdrawal.getPersonalTransactionId();
+        withdrawals.delete(withdrawal);
+        withdrawals.flush();
+        if (transactionId != null && deletePersonal) {
+            transactionService.delete(userId, transactionId);
+        }
+    }
+
+    // A ponte com as finanças pessoais (Fase 6)
+
+    static final String PRO_LABORE_CATEGORY = "Pró-labore";
+    static final String PROFIT_CATEGORY = "Lucros distribuídos";
+
+    /**
+     * Lança o líquido da retirada como receita nas finanças pessoais, na data do pagamento. Só a do
+     * sócio "sou eu". Sem categoria escolhida, usa "Pró-labore" ou "Lucros distribuídos", criada no
+     * primeiro lançamento (ou a ativa com esse nome que o usuário já tenha).
+     */
+    @Transactional
+    public WithdrawalResponse launch(Long userId, Long companyId, Long withdrawalId, Long categoryId) {
+        Company company = companyService.getActiveOwned(userId, companyId);
+        Withdrawal withdrawal = find(companyId, withdrawalId);
+        if (!partnerService.get(companyId, withdrawal.getPartnerId()).isMe()) {
+            throw rule("Só a retirada do sócio que é você entra nas suas finanças.");
+        }
+        if (withdrawal.getPersonalTransactionId() != null) {
+            throw new InvalidWithdrawalException("Esta retirada já está lançada nas suas finanças.", true);
+        }
+        boolean proLabore = withdrawal.getKind() == WithdrawalKind.PRO_LABORE;
+        Category category = categoryId != null
+                ? categoryService.getActiveOwned(userId, categoryId)
+                : categoryService.findOrCreateActive(userId, proLabore ? PRO_LABORE_CATEGORY : PROFIT_CATEGORY, CategoryType.INCOME,
+                        proLabore ? CategoryColor.TEAL : CategoryColor.MINT, proLabore ? CategoryIcon.SALARY : CategoryIcon.INVESTMENT);
+        if (category.getType() != CategoryType.INCOME) {
+            throw rule("Escolha uma categoria de receita.");
+        }
+        Transaction transaction = transactionService.create(userId, category.getId(), null, withdrawal.getNetAmount(),
+                withdrawal.getPaymentDate(), label(withdrawal, company.getName()));
+        withdrawal.linkTo(transaction.getId());
+        withdrawals.flush();
+        return response(withdrawal, isCalculated(withdrawal.getCompetenceMonth()));
+    }
+
+    /** A transação excluída no extrato: a retirada fica, sem a ligação. */
+    @Transactional
+    public void releasePersonal(Long transactionId) {
+        withdrawals.findByPersonalTransactionId(transactionId).ifPresent(withdrawal -> {
+            withdrawal.unlink();
+            withdrawals.flush();
+        });
+    }
+
+    /** As origens das transações lançadas por retiradas, para o extrato mostrar e travar valor e data. */
+    @Transactional(readOnly = true)
+    public Map<Long, TransactionOrigin> originsOf(Long userId, java.util.Collection<Long> transactionIds) {
+        Map<Long, TransactionOrigin> result = new HashMap<>();
+        Map<Long, Company> companies = new HashMap<>();
+        for (Withdrawal w : withdrawals.findAllByUserIdAndPersonalTransactionIdIn(userId, transactionIds)) {
+            Company company = companies.computeIfAbsent(w.getCompanyId(), id -> companyService.getOwned(userId, id));
+            result.put(w.getPersonalTransactionId(), new TransactionOrigin(TransactionOrigin.Kind.WITHDRAWAL,
+                    label(w, company.getName()), company.getId(), w.getId(), !company.isArchived()));
+        }
+        return result;
+    }
+
+    private void syncPersonal(Long userId, Withdrawal withdrawal) {
+        if (withdrawal.getPersonalTransactionId() != null) {
+            transactionService.syncFromOrigin(userId, withdrawal.getPersonalTransactionId(), withdrawal.getNetAmount(),
+                    withdrawal.getPaymentDate());
+        }
+    }
+
+    /** "Pró-labore 10/2026 · Estúdio Ana" ou "Lucros · Estúdio Ana". */
+    private static String label(Withdrawal withdrawal, String companyName) {
+        return (withdrawal.getKind() == WithdrawalKind.PRO_LABORE
+                ? "Pró-labore " + MONTH.format(withdrawal.getCompetenceMonth()) : "Lucros") + " · " + companyName;
     }
 
     /** As retiradas pagas no ano, da mais recente para a mais antiga. */
@@ -207,7 +302,7 @@ public class WithdrawalService {
         }
         return new WithdrawalResponse(withdrawal.getId(), withdrawal.getPartnerId(), withdrawal.getKind(), null,
                 withdrawal.getPaymentDate(), withdrawal.getGrossAmount(), withdrawal.getInssAmount(), withdrawal.getIrrfAmount(),
-                withdrawal.getNetAmount(), true, warnings);
+                withdrawal.getNetAmount(), true, warnings, withdrawal.getPersonalTransactionId());
     }
 
     private List<Withdrawal> distributions(Long companyId, LocalDate from, LocalDate to) {
@@ -385,7 +480,8 @@ public class WithdrawalService {
         // A distribuição não tem o que calcular: "calculated" só é falso no pró-labore informado à mão.
         return new WithdrawalResponse(withdrawal.getId(), withdrawal.getPartnerId(), withdrawal.getKind(), competence,
                 withdrawal.getPaymentDate(), withdrawal.getGrossAmount(), withdrawal.getInssAmount(), withdrawal.getIrrfAmount(),
-                withdrawal.getNetAmount(), calculated || withdrawal.getKind() == WithdrawalKind.DISTRIBUICAO_LUCROS, warnings);
+                withdrawal.getNetAmount(), calculated || withdrawal.getKind() == WithdrawalKind.DISTRIBUICAO_LUCROS, warnings,
+                withdrawal.getPersonalTransactionId());
     }
 
     private Withdrawal find(Long companyId, Long withdrawalId) {

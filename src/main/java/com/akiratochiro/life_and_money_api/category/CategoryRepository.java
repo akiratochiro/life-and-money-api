@@ -17,6 +17,8 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
 
     boolean existsByUserIdAndTypeAndNameIgnoreCaseAndArchivedFalse(Long userId, CategoryType type, String name);
 
+    java.util.Optional<Category> findFirstByUserIdAndTypeAndNameIgnoreCaseAndArchivedFalse(Long userId, CategoryType type, String name);
+
     /**
      * Apaga tudo do usuário, para a exclusão da conta. O flush antes e o clear depois evitam que
      * alterações pendentes se percam ou que entidades já apagadas continuem no contexto.

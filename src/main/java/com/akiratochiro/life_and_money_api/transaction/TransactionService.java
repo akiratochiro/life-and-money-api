@@ -4,6 +4,7 @@ import com.akiratochiro.life_and_money_api.category.Category;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
 import com.akiratochiro.life_and_money_api.category.CategoryType;
 import com.akiratochiro.life_and_money_api.shared.GoalNotFoundException;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,13 +24,38 @@ public class TransactionService {
     private final CategoryService categoryService;
     private final GoalOwnershipChecker goalOwnershipChecker;
     private final ApplicationEventPublisher eventPublisher;
+    /** Pelo provider: quem implementa (a retirada) depende deste service, e o construtor faria um ciclo de beans. */
+    private final ObjectProvider<TransactionOrigins> origins;
 
     public TransactionService(TransactionRepository transactionRepository, CategoryService categoryService,
-                              GoalOwnershipChecker goalOwnershipChecker, ApplicationEventPublisher eventPublisher) {
+                              GoalOwnershipChecker goalOwnershipChecker, ApplicationEventPublisher eventPublisher,
+                              ObjectProvider<TransactionOrigins> origins) {
         this.transactionRepository = transactionRepository;
         this.categoryService = categoryService;
         this.goalOwnershipChecker = goalOwnershipChecker;
         this.eventPublisher = eventPublisher;
+        this.origins = origins;
+    }
+
+    /** De onde vieram estas transações (as que vieram de outra feature). */
+    @Transactional(readOnly = true)
+    public Map<Long, TransactionOrigin> originsOf(Long userId, Collection<Long> transactionIds) {
+        Map<Long, TransactionOrigin> result = new java.util.HashMap<>();
+        if (!transactionIds.isEmpty()) {
+            origins.orderedStream().forEach(source -> result.putAll(source.originsOf(userId, transactionIds)));
+        }
+        return result;
+    }
+
+    /**
+     * Para a feature de origem acompanhar uma mudança dela (a retirada editada muda o valor e a data do
+     * lançamento). Não passa pela trava de {@link #update}, que existe justamente para mandar o usuário
+     * mudar na origem.
+     */
+    @Transactional
+    public void syncFromOrigin(Long userId, Long transactionId, BigDecimal amount, LocalDate transactionDate) {
+        Transaction transaction = findOwned(userId, transactionId);
+        transaction.update(transaction.getCategoryId(), transaction.getGoalId(), amount, transactionDate, transaction.getDescription());
     }
 
     @Transactional
@@ -45,6 +71,11 @@ public class TransactionService {
     public Transaction update(Long userId, Long transactionId, Long categoryId, Long goalId,
                               BigDecimal amount, LocalDate transactionDate, String description) {
         Transaction transaction = findOwned(userId, transactionId);
+        TransactionOrigin origin = originsOf(userId, List.of(transactionId)).get(transactionId);
+        if (origin != null && (transaction.getAmount().compareTo(amount) != 0 || !transaction.getTransactionDate().equals(transactionDate))) {
+            throw new LinkedTransactionException("Este lançamento vem de " + origin.label() + ": mude o valor e a data na "
+                    + "retirada, na página da empresa.");
+        }
 
         Category category = transaction.getCategoryId().equals(categoryId)
                 ? categoryService.getOwned(userId, categoryId)
