@@ -11,6 +11,8 @@ import com.akiratochiro.life_and_money_api.goal.SavingsGoalResponse;
 import com.akiratochiro.life_and_money_api.invoice.InvoiceExport;
 import com.akiratochiro.life_and_money_api.transaction.TransactionResponse;
 import com.akiratochiro.life_and_money_api.user.UserResponse;
+import com.akiratochiro.life_and_money_api.withdrawal.ProLaborePlanResponse;
+import com.akiratochiro.life_and_money_api.withdrawal.WithdrawalResponse;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.Instant;
@@ -41,6 +43,10 @@ public record AccountExport(
         @Schema(requiredMode = REQUIRED, description = "Despesas fixas das empresas, com o histórico dos termos")
         List<RecurringExpenseResponse> recurringExpenses,
         @Schema(requiredMode = REQUIRED, description = "Despesas pagas das empresas (avulsas e pagamentos de fixas)")
-        List<ExpenseResponse> companyExpenses
+        List<ExpenseResponse> companyExpenses,
+        @Schema(requiredMode = REQUIRED, description = "Pró-labores planejados, com o histórico")
+        List<ProLaborePlanResponse> proLaborePlans,
+        @Schema(requiredMode = REQUIRED, description = "Retiradas dos sócios (pró-labores pagos)")
+        List<WithdrawalResponse> withdrawals
 ) {
 }

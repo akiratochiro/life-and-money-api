@@ -44,17 +44,31 @@ public class TaxParameterService {
             throw new TaxParametersUnavailableException("O app calcula impostos a partir de " + MONTH.format(FIRST_SUPPORTED)
                     + ". Para " + MONTH.format(competence) + ", registre o valor que foi pago.");
         }
+        return findTableFor(competence).orElseThrow(() ->
+                new TaxParametersUnavailableException("Faltam parâmetros tributários para " + MONTH.format(competence) + "."));
+    }
+
+    /**
+     * Como {@link #tableFor}, mas sem lançar: para quem só quer saber se dá para calcular. Uma exceção
+     * lançada dentro de um método transacional marca a transação de quem chamou para rollback, mesmo
+     * que ela seja capturada; por isso a pergunta "existe?" não pode ser respondida com exceção.
+     */
+    @Transactional(readOnly = true)
+    public Optional<TaxTable> findTableFor(YearMonth competence) {
+        if (competence.isBefore(FIRST_SUPPORTED)) {
+            return Optional.empty();
+        }
         LocalDate date = competence.atDay(1);
         Map<TaxParameter, BigDecimal> values = new EnumMap<>(TaxParameter.class);
         latestParameters(date).forEach((key, row) -> values.put(key, row.getValue()));
         if (values.size() < TaxParameter.values().length) {
-            throw new TaxParametersUnavailableException("Faltam parâmetros tributários para " + MONTH.format(competence) + ".");
+            return Optional.empty();
         }
-        return new TaxTable(date, values,
+        return Optional.of(new TaxTable(date, values,
                 latestSet(simples.findAllByValidFromLessThanEqual(date), SimplesBracketRow::getValidFrom).stream()
                         .map(SimplesBracketRow::toBracket).toList(),
                 latestSet(irrf.findAllByValidFromLessThanEqual(date), IrrfBracketRow::getValidFrom).stream()
-                        .map(IrrfBracketRow::toBracket).toList());
+                        .map(IrrfBracketRow::toBracket).toList()));
     }
 
     /** Tudo o que vale numa data, com a fonte de cada valor: para conferência na tela. */

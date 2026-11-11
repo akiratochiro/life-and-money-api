@@ -232,6 +232,17 @@ public class CompanyService {
         return regimeRepository.findAllByCompanyIdOrderByValidFromAsc(companyId);
     }
 
+    /**
+     * O enquadramento que valia na competência; vazio antes da abertura. É o que decide como os
+     * impostos de um mês são calculados, mesmo depois de uma mudança de regime.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<CompanyRegime> regimeIn(Long companyId, YearMonth month) {
+        return regimeRepository.findAllByCompanyIdOrderByValidFromAsc(companyId).stream()
+                .filter(regime -> regime.isValidIn(month))
+                .findFirst();
+    }
+
     /** Arquivar de novo não muda nada, como nas categorias. */
     @Transactional
     public CompanyDetails archive(Long userId, Long companyId) {

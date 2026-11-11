@@ -45,6 +45,8 @@ import com.akiratochiro.life_and_money_api.user.EmailAlreadyInUseException;
 import com.akiratochiro.life_and_money_api.user.IncorrectPasswordException;
 import com.akiratochiro.life_and_money_api.user.InvalidCredentialsException;
 import com.akiratochiro.life_and_money_api.user.UserNotFoundException;
+import com.akiratochiro.life_and_money_api.withdrawal.InvalidWithdrawalException;
+import com.akiratochiro.life_and_money_api.withdrawal.WithdrawalNotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -241,6 +243,11 @@ public class GlobalExceptionHandler {
         return notFound("Despesa não encontrada", ex);
     }
 
+    @ExceptionHandler(WithdrawalNotFoundException.class)
+    public ProblemDetail handleWithdrawalNotFound(WithdrawalNotFoundException ex) {
+        return notFound("Retirada não encontrada", ex);
+    }
+
     @ExceptionHandler(InvoiceNotFoundException.class)
     public ProblemDetail handleInvoiceNotFound(InvoiceNotFoundException ex) {
         return notFound("Nota fiscal não encontrada", ex);
@@ -321,6 +328,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidExpenseException.class)
     public ProblemDetail handleInvalidExpense(InvalidExpenseException ex) {
         return ex.isConflict() ? conflict("Mês já pago", ex) : unprocessable("Despesa inválida", ex);
+    }
+
+    @ExceptionHandler(InvalidWithdrawalException.class)
+    public ProblemDetail handleInvalidWithdrawal(InvalidWithdrawalException ex) {
+        return ex.isConflict() ? conflict("Retirada repetida", ex) : unprocessable("Retirada inválida", ex);
     }
 
     @ExceptionHandler(DuplicateInvoiceException.class)

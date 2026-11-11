@@ -65,6 +65,18 @@ public class PartnerService {
         partnerRepository.delete(partner);
     }
 
+    /** Para outras features: os sócios da empresa (que quem chama já conferiu ser do usuário). */
+    @Transactional(readOnly = true)
+    public List<Partner> listOf(Long companyId) {
+        return partnerRepository.findAllByCompanyIdOrderByIdAsc(companyId);
+    }
+
+    /** Para outras features: o sócio da empresa (que quem chama já conferiu ser do usuário). */
+    @Transactional(readOnly = true)
+    public Partner get(Long companyId, Long partnerId) {
+        return findIn(companyId, partnerId);
+    }
+
     /** A empresa já foi conferida como do usuário; o sócio precisa ser dela. */
     private Partner findIn(Long companyId, Long partnerId) {
         return partnerRepository.findByIdAndCompanyId(partnerId, companyId)

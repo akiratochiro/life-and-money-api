@@ -116,6 +116,8 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.expenseCategories.length()").value(7))
                 .andExpect(jsonPath("$.recurringExpenses[0].history.length()").value(1))
                 .andExpect(jsonPath("$.companyExpenses.length()").value(1))
+                .andExpect(jsonPath("$.proLaborePlans.length()").value(1))
+                .andExpect(jsonPath("$.withdrawals[0].inssAmount").value(330.00))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
@@ -141,7 +143,7 @@ class AccountIntegrationTest extends IntegrationTest {
                         "scheduled_bills", "scheduled_bill_terms", "bill_payments",
                         "companies", "company_regimes", "partners", "attachments", "invoices",
                         "company_expense_categories", "company_recurring_expenses",
-                        "company_recurring_expense_terms", "company_expenses");
+                        "company_recurring_expense_terms", "company_expenses", "partner_pro_labore_plans", "withdrawals");
 
         Map<String, Long> rows = new LinkedHashMap<>();
         rows.put("users", jdbc.queryForObject("select count(*) from users where id = ?", Long.class, userId));
@@ -189,7 +191,7 @@ class AccountIntegrationTest extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"name": "Estúdio %d", "emoji": "💼", "openingDate": "2024-03-10",
-                                 "legalNature": "MEI", "taxRegime": "SIMEI", "meiActivity": "SERVICOS"}
+                                 "legalNature": "SLU", "taxRegime": "SIMPLES_NACIONAL", "annexConfig": "FATOR_R"}
                                 """.formatted(userId)))
                 .andExpect(status().isCreated());
         Long company = jdbc.queryForObject("select id from companies where user_id = ?", Long.class, userId);
@@ -214,6 +216,19 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(status().isCreated()).andReturn());
         mockMvc.perform(post("/companies/{id}/recurring-expenses/{rid}/occurrences/{m}/payment", company, recurring,
                         java.time.YearMonth.now()).with(asUser(userId)))
+                .andExpect(status().isCreated());
+
+        // Um pró-labore planejado e um pago: linhas em partner_pro_labore_plans e withdrawals.
+        Long partner = jdbc.queryForObject("select id from partners where company_id = ?", Long.class, company);
+        mockMvc.perform(put("/companies/{id}/partners/{pid}/pro-labore-plan", company, partner).with(asUser(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"grossAmount\": 3000}"))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/companies/{id}/withdrawals", company).with(asUser(userId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"partnerId": %d, "kind": "PRO_LABORE", "competenceMonth": "2026-10",
+                                 "paymentDate": "2026-10-30", "grossAmount": 3000}
+                                """.formatted(partner)))
                 .andExpect(status().isCreated());
 
         login(email).andExpect(status().isOk());
