@@ -8,8 +8,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Os feriados nacionais, sem nunca derrubar quem pergunta: se a fonte falhar, a resposta diz
- * que os feriados não estão disponíveis, e as contas seguem só com os fins de semana.
+ * Os feriados nacionais, sem nunca derrubar quem pergunta: se a BrasilAPI falhar, eles são
+ * calculados aqui ({@link LocalHolidays}), e os prazos continuam sabendo de Finados e do Carnaval.
  */
 @Service
 public class HolidayService {
@@ -28,13 +28,13 @@ public class HolidayService {
 
     public HolidaysResponse holidaysOf(int year) {
         if (year < FIRST_YEAR || year > LAST_YEAR) {
-            return new HolidaysResponse(year, false, List.of());
+            return new HolidaysResponse(year, false, List.of(), null);
         }
         try {
-            return new HolidaysResponse(year, true, source.fetch(year));
+            return new HolidaysResponse(year, true, source.fetch(year), HolidaysResponse.Source.BRASIL_API);
         } catch (HolidaySourceException e) {
-            log.warn("Feriados de {} indisponíveis; os prazos vão considerar só os fins de semana", year, e);
-            return new HolidaysResponse(year, false, List.of());
+            log.warn("BrasilAPI sem os feriados de {}; usando o cálculo local", year, e);
+            return new HolidaysResponse(year, true, LocalHolidays.of(year), HolidaysResponse.Source.LOCAL);
         }
     }
 

@@ -59,7 +59,8 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   nacionais (`holiday/HolidayCalendar`), e é dele que sai o `OVERDUE`. Carnaval e Corpus Christi
   contam como não úteis. Os feriados vêm da BrasilAPI por um `HolidaySource` (`RestClient`, timeouts
   de 2 s e 3 s, `@Cacheable("holidays")` por ano). **Nada pode quebrar se ela cair**: o
-  `HolidayService` devolve `available=false` e o prazo considera só fins de semana. Os testes de
+  `HolidayService` cai para o `LocalHolidays` (Páscoa por Meeus, os mesmos nomes da BrasilAPI) e a
+  resposta diz `source: LOCAL` (decisão 25). `previousBusinessDayFrom` serve ao DARF, que antecipa. Os testes de
   integração usam o `FixedHolidaySource`, nunca a rede.
 - **Cor e ícone de categoria** (decisão 12): enums `CategoryColor` e `CategoryIcon`, guardados por
   nome, repetidos em `CHECK` no banco. Valor novo entra no enum, numa migration nova que muda o

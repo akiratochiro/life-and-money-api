@@ -158,19 +158,20 @@ class BillOccurrencesIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    void withTheBrasilApiDownOnlyWeekendsMoveTheDeadline() throws Exception {
-        // given: os feriados não carregam
+    void withTheBrasilApiDownTheLocalHolidaysStillMoveTheDeadline() throws Exception {
+        // given: a BrasilAPI não responde
         holidays.failing(true);
         clock.setTo(Instant.parse("2026-11-03T15:00:00Z"));
         Long user = register("ocorrencias.fallback@test.dev");
         Long home = createCategory(user, "Casa", "EXPENSE");
         createBill(user, home, "Aluguel", "1500.00", 31, "MONTHLY", "2026-10");
 
-        // then: a tela continua funcionando; sem saber de Finados, o prazo fica na segunda 2/11
+        // then: o cálculo local sabe que segunda 2/11 é Finados; o prazo vai para terça 3/11, e a conta
+        // ainda não está atrasada (antes do cálculo local, ela aparecia atrasada um dia antes da hora)
         occurrences(user, "2026-10")
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].payableUntil").value("2026-11-02"))
-                .andExpect(jsonPath("$[0].status").value("OVERDUE"));
+                .andExpect(jsonPath("$[0].payableUntil").value("2026-11-03"))
+                .andExpect(jsonPath("$[0].status").value("PENDING"));
     }
 
     @Test

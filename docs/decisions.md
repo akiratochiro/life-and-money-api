@@ -688,3 +688,21 @@ text means deleting its entry.
 
 **Consequences.** Work goes on without pretending the sources were verified, and the gap cannot be
 forgotten at deploy time. The normal suite and CI stay green.
+
+## 25. Holidays fall back to a local calculation instead of weekends only
+
+**Context.** Decision 11 made the deadline of personal bills fall back to weekends only when the
+BrasilAPI fails. Phase 4 needs business days for tax due dates (the DAS moves forward, the DARF
+backward), where a wrong day is a late payment.
+
+**Decision.** `LocalHolidays` computes the same national holidays the BrasilAPI returns, with the same
+names: 9 fixed dates (Black Consciousness Day only from 2024, Lei 14.759/2023) and 5 Easter-based ones
+(Carnival Monday and Tuesday, Good Friday, Easter, Corpus Christi), Easter by the Meeus/Jones/Butcher
+algorithm. `HolidayService` uses it when the BrasilAPI fails, and `/holidays` now says where the list
+came from (`source`: `BRASIL_API` or `LOCAL`); `available` is false only outside 1900–2199.
+`HolidayCalendar` gained `previousBusinessDayFrom` for the DARF.
+
+**Consequences.** Without the BrasilAPI a bill due on Saturday, October 31st, 2026 is payable until
+Tuesday, November 3rd (Monday is Finados), instead of showing overdue a day early. The BrasilAPI stays
+the primary source: if a holiday is ever moved by law, it is the one that knows, and a test keeps
+the local list equal to the BrasilAPI's for 2026 and 2027.

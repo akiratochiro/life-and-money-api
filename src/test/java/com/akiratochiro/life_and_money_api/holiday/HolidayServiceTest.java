@@ -37,13 +37,14 @@ class HolidayServiceTest {
     }
 
     @Test
-    void aFailingSourceNeverBreaksTheCaller() {
+    void aFailingSourceFallsBackToTheLocalCalculation() {
         when(source.fetch(2026)).thenThrow(new HolidaySourceException("fora do ar", null));
 
         HolidaysResponse response = service.holidaysOf(2026);
 
-        assertThat(response.available()).isFalse();
-        assertThat(response.holidays()).isEmpty();
+        assertThat(response.available()).isTrue();
+        assertThat(response.source()).isEqualTo(HolidaysResponse.Source.LOCAL);
+        assertThat(response.holidays()).isEqualTo(LocalHolidays.of(2026));
     }
 
     @Test
@@ -54,13 +55,13 @@ class HolidayServiceTest {
     }
 
     @Test
-    void aYearThatFailedCountsOnlyWeekendsAndTheOthersKeepTheirHolidays() {
+    void aYearThatFailedUsesTheLocalHolidaysAndTheOthersKeepTheBrasilApis() {
         when(source.fetch(2026)).thenReturn(List.of(FINADOS));
         when(source.fetch(2027)).thenThrow(new HolidaySourceException("fora do ar", null));
 
         HolidayCalendar calendar = service.calendarFor(2026, 2027);
 
         assertThat(calendar.isBusinessDay(FINADOS.date())).as("o ano que carregou continua valendo").isFalse();
-        assertThat(calendar.isBusinessDay(LocalDate.of(2027, 11, 2))).as("Finados de 2027, sem a BrasilAPI").isTrue();
+        assertThat(calendar.isBusinessDay(LocalDate.of(2027, 11, 2))).as("Finados de 2027, calculado localmente").isFalse();
     }
 }

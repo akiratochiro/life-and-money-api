@@ -9,8 +9,7 @@ import java.util.stream.Collectors;
 /**
  * Dias úteis: nem sábado, nem domingo, nem feriado nacional. Quem monta o calendário garante que
  * os feriados cobrem os anos em que ele vai ser consultado, inclusive o ano seguinte, porque um
- * vencimento em 31/12 pode ter o prazo empurrado para janeiro. Um ano que não pôde ser carregado
- * entra sem feriados: naquele ano, só os fins de semana contam.
+ * vencimento em 31/12 pode ter o prazo empurrado para janeiro.
  */
 public final class HolidayCalendar {
 
@@ -30,6 +29,15 @@ public final class HolidayCalendar {
         LocalDate candidate = date;
         while (!isBusinessDay(candidate)) {
             candidate = candidate.plusDays(1);
+        }
+        return candidate;
+    }
+
+    /** O próprio dia, se for útil; senão, o dia útil anterior (o DARF vence antes, não depois). */
+    public LocalDate previousBusinessDayFrom(LocalDate date) {
+        LocalDate candidate = date;
+        while (!isBusinessDay(candidate)) {
+            candidate = candidate.minusDays(1);
         }
         return candidate;
     }

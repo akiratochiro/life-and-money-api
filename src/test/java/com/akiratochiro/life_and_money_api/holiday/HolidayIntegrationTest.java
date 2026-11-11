@@ -23,14 +23,16 @@ class HolidayIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    void withTheBrasilApiDownTheAnswerIsStillOk() throws Exception {
+    void withTheBrasilApiDownTheHolidaysAreCalculatedLocally() throws Exception {
         Long user = register("feriados.fora@test.dev");
         holidays.failing(true);
 
         mockMvc.perform(get("/holidays").param("year", "2026").with(asUser(user)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.available").value(false))
-                .andExpect(jsonPath("$.holidays.length()").value(0));
+                .andExpect(jsonPath("$.available").value(true))
+                .andExpect(jsonPath("$.source").value("LOCAL"))
+                .andExpect(jsonPath("$.holidays.length()").value(14))
+                .andExpect(jsonPath("$.holidays[?(@.name == 'Finados')].date").value("2026-11-02"));
     }
 
     @Test
