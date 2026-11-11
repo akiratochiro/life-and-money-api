@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Construída à mão a partir do XSD oficial 1.01 (gov.br/nfse, pacote de 09/02/2026), com dados
+     fictícios. Não é uma nota real: a assinatura e o dígito da chave são de mentira. -->
+<NFSe xmlns="http://www.sped.fazenda.gov.br/nfse" versao="1.01">
+  <infNFSe Id="NFS35503082212345678000195000000000004226111234567890">
+    <xLocEmi>São Paulo</xLocEmi>
+    <xLocPrestacao>São Paulo</xLocPrestacao>
+    <nNFSe>42</nNFSe>
+    <cLocIncid>3550308</cLocIncid>
+    <xLocIncid>São Paulo</xLocIncid>
+    <xTribNac>Análise e desenvolvimento de sistemas.</xTribNac>
+    <verAplic>SefinNac_1.0</verAplic>
+    <ambGer>2</ambGer>
+    <tpEmis>1</tpEmis>
+    <cStat>100</cStat>
+    <dhProc>2026-11-10T14:32:07-03:00</dhProc>
+    <nDFSe>123456</nDFSe>
+    <emit>
+      <CNPJ>11222333000181</CNPJ>
+      <IM>12345678</IM>
+      <xNome>ANA DESIGN LTDA</xNome>
+    </emit>
+    <valores>
+      <vBC>10000.00</vBC>
+      <pAliqAplic>2.00</pAliqAplic>
+      <vISSQN>200.00</vISSQN>
+      <vTotalRet>1550.00</vTotalRet>
+      <vLiq>8450.00</vLiq>
+    </valores>
+    <DPS versao="1.01">
+      <infDPS Id="DPS355030821122233300018100001000000000000042">
+        <tpAmb>1</tpAmb>
+        <dhEmi>2026-11-10T23:32:05-03:00</dhEmi>
+        <verAplic>Emissor1.0</verAplic>
+        <serie>1</serie>
+        <nDPS>42</nDPS>
+        <dCompet>2026-10-31</dCompet>
+        <tpEmit>1</tpEmit>
+        <cLocEmi>3550308</cLocEmi>
+        <prest>
+          <CNPJ>11222333000181</CNPJ>
+          <regTrib><opSimpNac>3</opSimpNac><regEspTrib>0</regEspTrib></regTrib>
+        </prest>
+        <toma>
+          <CNPJ>98765432000198</CNPJ>
+          <xNome>CLIENTE EXEMPLO S.A.</xNome>
+        </toma>
+        <serv>
+          <locPrest><cLocPrestacao>3550308</cLocPrestacao></locPrest>
+          <cServ>
+            <cTribNac>010101</cTribNac>
+            <xDescServ>Desenvolvimento de software sob encomenda - outubro/2026</xDescServ>
+          </cServ>
+        </serv>
+        <valores>
+          <vServPrest><vServ>10000.00</vServ></vServPrest>
+          <trib>
+            <tribMun>
+              <tribISSQN>1</tribISSQN>
+              <tpRetISSQN>2</tpRetISSQN>
+              <pAliq>2.00</pAliq>
+            </tribMun>
+            <tribFed>
+              <piscofins>
+                <CST>01</CST>
+                <vBCPisCofins>10000.00</vBCPisCofins>
+                <pAliqPis>0.65</pAliqPis>
+                <pAliqCofins>3.00</pAliqCofins>
+                <vPis>65.00</vPis>
+                <vCofins>300.00</vCofins>
+                <tpRetPisCofins>2</tpRetPisCofins>
+              </piscofins>
+              <vRetCP>1100.00</vRetCP>
+              <vRetIRRF>150.00</vRetIRRF>
+              <vRetCSLL>100.00</vRetCSLL>
+            </tribFed>
+            <totTrib><indTotTrib>0</indTotTrib></totTrib>
+          </trib>
+        </valores>
+      </infDPS>
+    </DPS>
+  </infNFSe>
+  <Signature xmlns="http://www.w3.org/2000/09/xmldsig#">
+    <SignedInfo/><SignatureValue>ficticia</SignatureValue>
+  </Signature>
+</NFSe>
