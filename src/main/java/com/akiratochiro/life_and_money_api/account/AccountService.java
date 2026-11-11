@@ -8,6 +8,8 @@ import com.akiratochiro.life_and_money_api.budget.BudgetService;
 import com.akiratochiro.life_and_money_api.category.CategoryResponse;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
 import com.akiratochiro.life_and_money_api.company.CompanyService;
+import com.akiratochiro.life_and_money_api.companyexpense.CompanyExpenseCategoryService;
+import com.akiratochiro.life_and_money_api.companyexpense.ExpenseCategoryExportRow;
 import com.akiratochiro.life_and_money_api.goal.GoalService;
 import com.akiratochiro.life_and_money_api.invoice.InvoiceService;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimit;
@@ -40,6 +42,7 @@ class AccountService {
     private final CompanyService companyService;
     private final InvoiceService invoiceService;
     private final AttachmentService attachmentService;
+    private final CompanyExpenseCategoryService expenseCategoryService;
     private final AccountCredentials accountCredentials;
     private final RateLimiter rateLimiter;
     private final Clock clock;
@@ -53,6 +56,7 @@ class AccountService {
                    CompanyService companyService,
                    InvoiceService invoiceService,
                    AttachmentService attachmentService,
+                   CompanyExpenseCategoryService expenseCategoryService,
                    AccountCredentials accountCredentials,
                    RateLimiter rateLimiter,
                    Clock clock) {
@@ -65,6 +69,7 @@ class AccountService {
         this.companyService = companyService;
         this.invoiceService = invoiceService;
         this.attachmentService = attachmentService;
+        this.expenseCategoryService = expenseCategoryService;
         this.accountCredentials = accountCredentials;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
@@ -82,7 +87,8 @@ class AccountService {
                 goalService.list(userId),
                 billService.listAll(userId),
                 companyService.listAll(userId),
-                invoiceService.listAll(userId));
+                invoiceService.listAll(userId),
+                expenseCategoryService.listAll(userId).stream().map(ExpenseCategoryExportRow::from).toList());
     }
 
     /**
@@ -103,6 +109,7 @@ class AccountService {
 
         invoiceService.deleteAllOf(userId);
         attachmentService.deleteAllOf(userId);
+        expenseCategoryService.deleteAllOf(userId);
         companyService.deleteAllOf(userId);
         billService.deleteAllOf(userId);
         transactionService.deleteAllOf(userId);

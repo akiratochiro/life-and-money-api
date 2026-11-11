@@ -113,6 +113,7 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.companies[0].partners[0].me").value(true))
                 .andExpect(jsonPath("$.invoices.length()").value(1))
                 .andExpect(jsonPath("$.invoices[0].invoice.number").value("77"))
+                .andExpect(jsonPath("$.expenseCategories.length()").value(7))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
@@ -136,7 +137,8 @@ class AccountIntegrationTest extends IntegrationTest {
                 .contains("categories", "transactions", "budget_items", "savings_goals",
                         "refresh_tokens", "password_reset_tokens",
                         "scheduled_bills", "scheduled_bill_terms", "bill_payments",
-                        "companies", "company_regimes", "partners", "attachments", "invoices");
+                        "companies", "company_regimes", "partners", "attachments", "invoices",
+                        "company_expense_categories");
 
         Map<String, Long> rows = new LinkedHashMap<>();
         rows.put("users", jdbc.queryForObject("select count(*) from users where id = ?", Long.class, userId));

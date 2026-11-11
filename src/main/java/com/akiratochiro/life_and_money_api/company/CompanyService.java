@@ -1,6 +1,7 @@
 package com.akiratochiro.life_and_money_api.company;
 
 import com.akiratochiro.life_and_money_api.user.UserService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,6 +32,7 @@ public class CompanyService {
     private final PartnerRepository partnerRepository;
     private final UserService userService;
     private final List<OpeningDateLock> openingDateLocks;
+    private final ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public CompanyService(CompanyRepository companyRepository,
@@ -38,12 +40,14 @@ public class CompanyService {
                           PartnerRepository partnerRepository,
                           UserService userService,
                           List<OpeningDateLock> openingDateLocks,
+                          ApplicationEventPublisher eventPublisher,
                           Clock clock) {
         this.companyRepository = companyRepository;
         this.regimeRepository = regimeRepository;
         this.partnerRepository = partnerRepository;
         this.userService = userService;
         this.openingDateLocks = openingDateLocks;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -83,6 +87,8 @@ public class CompanyService {
                 ? data.partnerName().strip()
                 : userService.findById(userId).getName();
         partnerRepository.save(new Partner(userId, company.getId(), partnerName, true));
+        // Síncrono e na mesma transação: se semear as categorias falhar, a empresa também não nasce.
+        eventPublisher.publishEvent(new CompanyCreatedEvent(userId, company.getId()));
 
         return new CompanyDetails(company, regime, true);
     }
