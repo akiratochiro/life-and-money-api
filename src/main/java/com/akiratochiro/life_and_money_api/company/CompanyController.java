@@ -52,6 +52,29 @@ public class CompanyController {
         return CompanyResponse.from(companyService.update(CurrentUser.id(jwt), id, request.toChanges()));
     }
 
+    @GetMapping("/{id}/regimes")
+    @Operation(operationId = "listCompanyRegimes", summary = "Histórico de enquadramento, do mais antigo ao mais recente")
+    public List<CompanyRegimeResponse> regimes(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return toResponses(companyService.regimes(CurrentUser.id(jwt), id));
+    }
+
+    @PostMapping("/{id}/regimes")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(operationId = "changeCompanyRegime",
+            summary = "Novo enquadramento a partir de um mês; fecha o atual no mês anterior e devolve o histórico")
+    public List<CompanyRegimeResponse> changeRegime(@AuthenticationPrincipal Jwt jwt,
+                                                    @PathVariable Long id,
+                                                    @Valid @RequestBody ChangeRegimeRequest request) {
+        return toResponses(companyService.changeRegime(CurrentUser.id(jwt), id, request.toChange()));
+    }
+
+    @DeleteMapping("/{id}/regimes/latest")
+    @Operation(operationId = "undoCompanyRegimeChange",
+            summary = "Desfaz a última mudança de enquadramento, reabrindo a anterior, e devolve o histórico")
+    public List<CompanyRegimeResponse> undoRegimeChange(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
+        return toResponses(companyService.undoLastRegimeChange(CurrentUser.id(jwt), id));
+    }
+
     @PostMapping("/{id}/archive")
     @Operation(operationId = "archiveCompany", summary = "Arquiva a empresa, preservando todo o histórico")
     public CompanyResponse archive(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
@@ -62,5 +85,9 @@ public class CompanyController {
     @Operation(operationId = "unarchiveCompany")
     public CompanyResponse unarchive(@AuthenticationPrincipal Jwt jwt, @PathVariable Long id) {
         return CompanyResponse.from(companyService.unarchive(CurrentUser.id(jwt), id));
+    }
+
+    private static List<CompanyRegimeResponse> toResponses(List<CompanyRegime> regimes) {
+        return regimes.stream().map(CompanyRegimeResponse::from).toList();
     }
 }

@@ -24,6 +24,7 @@ public class CompanyService {
 
     private static final Locale PT_BR = Locale.of("pt", "BR");
     private static final DateTimeFormatter BR_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter MONTH = DateTimeFormatter.ofPattern("MM/yyyy");
 
     private final CompanyRepository companyRepository;
     private final CompanyRegimeRepository regimeRepository;
@@ -158,6 +159,71 @@ public class CompanyService {
         company.changeOpeningBalance(balance, balanceDate);
 
         return details(company);
+    }
+
+    /** Todo o histórico, do mais antigo ao mais recente. */
+    @Transactional(readOnly = true)
+    public List<CompanyRegime> regimes(Long userId, Long companyId) {
+        getOwned(userId, companyId);
+        return regimeRepository.findAllByCompanyIdOrderByValidFromAsc(companyId);
+    }
+
+    /**
+     * Abre uma vigência nova a partir de {@code validFrom} e fecha a atual no mês anterior. O
+     * histórico só cresce no fim: a mudança precisa começar depois do início da vigência atual,
+     * nunca no meio do passado já registrado. Pode ser no passado (quem cadastra hoje uma empresa
+     * que já mudou de enquadramento) ou no futuro (um desenquadramento agendado para janeiro).
+     */
+    @Transactional
+    public List<CompanyRegime> changeRegime(Long userId, Long companyId, RegimeChange change) {
+        getActiveOwned(userId, companyId);
+        RegimeRules.validate(change.legalNature(), change.taxRegime(), change.annexConfig(), change.meiActivity());
+
+        CompanyRegime current = regimeRepository.findByCompanyIdAndValidToIsNull(companyId).orElseThrow();
+        if (!change.validFrom().isAfter(current.getValidFrom())) {
+            throw new InvalidRegimeChangeException("A mudança precisa começar depois de "
+                    + MONTH.format(current.getValidFrom())
+                    + ", quando começou o enquadramento atual. Para corrigir o atual, desfaça a última mudança.");
+        }
+        if (current.sameAs(change.legalNature(), change.taxRegime(), change.annexConfig(), change.meiActivity())) {
+            throw new InvalidRegimeChangeException("O enquadramento informado é igual ao atual.");
+        }
+        if (change.legalNature() == LegalNature.MEI && partnerRepository.countByCompanyId(companyId) > 1) {
+            throw new InvalidRegimeChangeException(
+                    "O MEI não tem sócios além do titular. Remova os outros sócios antes de mudar para MEI.");
+        }
+
+        current.close(change.validFrom().minusMonths(1));
+        // Fechar antes de inserir: o índice único parcial só aceita uma vigência sem fim por empresa.
+        regimeRepository.flush();
+        regimeRepository.save(new CompanyRegime(userId, companyId, change.legalNature(), change.taxRegime(),
+                change.annexConfig(), change.meiActivity(), change.validFrom()));
+
+        return regimeRepository.findAllByCompanyIdOrderByValidFromAsc(companyId);
+    }
+
+    /**
+     * Desfaz só a última mudança, reabrindo a vigência anterior. É o jeito de corrigir um engano
+     * sem reescrever o meio do histórico: corrigir uma vigência antiga exige desfazer, uma a uma,
+     * as que vieram depois.
+     */
+    @Transactional
+    public List<CompanyRegime> undoLastRegimeChange(Long userId, Long companyId) {
+        getActiveOwned(userId, companyId);
+        List<CompanyRegime> regimes = regimeRepository.findAllByCompanyIdOrderByValidFromAsc(companyId);
+        if (regimes.size() == 1) {
+            throw new NoRegimeChangeToUndoException();
+        }
+
+        CompanyRegime latest = regimes.getLast();
+        CompanyRegime previous = regimes.get(regimes.size() - 2);
+        regimeRepository.delete(latest);
+        // O Hibernate executa os UPDATEs antes dos DELETEs no flush. Sem este flush, a anterior seria
+        // reaberta com a última ainda no banco, e o índice único parcial recusaria duas vigências sem fim.
+        regimeRepository.flush();
+        previous.reopen();
+
+        return regimeRepository.findAllByCompanyIdOrderByValidFromAsc(companyId);
     }
 
     /** Arquivar de novo não muda nada, como nas categorias. */

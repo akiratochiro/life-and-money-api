@@ -21,6 +21,8 @@ import com.akiratochiro.life_and_money_api.company.CnpjAlreadyRegisteredExceptio
 import com.akiratochiro.life_and_money_api.company.CompanyArchivedException;
 import com.akiratochiro.life_and_money_api.company.CompanyNotFoundException;
 import com.akiratochiro.life_and_money_api.company.InvalidCompanyDataException;
+import com.akiratochiro.life_and_money_api.company.InvalidRegimeChangeException;
+import com.akiratochiro.life_and_money_api.company.NoRegimeChangeToUndoException;
 import com.akiratochiro.life_and_money_api.company.OpeningDateLockedException;
 import com.akiratochiro.life_and_money_api.goal.InvalidGoalDeadlineException;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimitExceededException;
@@ -259,6 +261,11 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(NoRegimeChangeToUndoException.class)
+    public ProblemDetail handleNoRegimeChangeToUndo(NoRegimeChangeToUndoException ex) {
+        return conflict("Nada para desfazer", ex);
+    }
+
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ProblemDetail handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         // A mensagem do banco não vai para o usuário, mas precisa ficar no log para investigação.
@@ -295,6 +302,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidBillPeriodException.class)
     public ProblemDetail handleInvalidBillPeriod(InvalidBillPeriodException ex) {
         return unprocessable("Período inválido", ex);
+    }
+
+    @ExceptionHandler(InvalidRegimeChangeException.class)
+    public ProblemDetail handleInvalidRegimeChange(InvalidRegimeChangeException ex) {
+        return unprocessable("Mudança de enquadramento inválida", ex);
     }
 
     // 429
