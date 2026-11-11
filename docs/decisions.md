@@ -706,3 +706,30 @@ came from (`source`: `BRASIL_API` or `LOCAL`); `available` is false only outside
 Tuesday, November 3rd (Monday is Finados), instead of showing overdue a day early. The BrasilAPI stays
 the primary source: if a holiday is ever moved by law, it is the one that knows, and a test keeps
 the local list equal to the BrasilAPI's for 2026 and 2027.
+
+## 26. Tax obligations computed per month; only payments are stored
+
+**Context.** Phase 4 shows every month what the company owes (DAS, DAS-MEI, the partner's DARF, the
+yearly declarations, the user's own obligations), with an expected amount and how it was computed,
+and lets the user record what was paid. Regimes change over time, pró-labore is registered and
+planned, and revenue keeps arriving after a month closes.
+
+**Decision.** Like bills (decision 9), an obligation (`tax_obligations`) is the identity and its
+occurrences are computed: a system obligation applies in a competence when the company's regime in
+that month matches it (`ObligationKind.appliesTo`), so a regime change needs no synchronization.
+The five system obligations are created with the company (`CompanyCreatedEvent`, and V20 for existing
+ones), can only be deactivated, and carry their own due rule: DAS postpones to the next business day,
+DARF anticipates, declarations keep 31/03 and 31/05. The DARF exists only in months with pró-labore.
+The expected value is recomputed on read (`ExpectedTaxCalculator` feeds the pure engine); only the
+payment is stored (`tax_payments`, one per obligation and competence). Paying creates a company
+expense in the system "Taxes" category, where the paid amount and date live, and freezes the expected
+value of that moment so the difference does not drift as invoices arrive later. A declaration only
+records the delivery date. Deleting that expense in the Expenses tab releases the payment
+(`CompanyExpenseDeletingEvent`, as in decision 10). Custom obligations with payments cannot be deleted,
+only deactivated. Competences the engine does not calculate (before 2026, from 2027) show no expected
+value and still accept payments.
+
+**Consequences.** The month view always reflects the latest revenue and payroll without jobs or
+stored forecasts, and a paid tax appears in expenses and totals with no double entry. The cost is
+recomputing per request (a handful of small queries per obligation), acceptable at this scale. The
+expected values are estimates; the response says so (`notice`).

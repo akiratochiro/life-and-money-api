@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -104,6 +104,12 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   dinheiro arredondado para centavos (HALF_UP), alíquotas com 10 dígitos. Os testes do motor usam
   `Tables2026`, e o `TaxParameterIntegrationTest` confere que a V18 é igual. Regra lida só em
   compilação não oficial entra em `UnverifiedLegalSource`.
+- **Obrigações e pagamentos** (`tax`, decisão 26): ocorrências calculadas como as contas; a obrigação do
+  sistema vale no mês pelo regime da competência (`ObligationKind.appliesTo`), sem sincronizar nada na
+  mudança de enquadramento. O previsto é recalculado na leitura (`ExpectedTaxCalculator` → motor puro);
+  só o pagamento é gravado, o valor e a data pagos moram na despesa de Impostos, e o previsto do momento
+  fica congelado. Apagar a despesa solta o pagamento (`CompanyExpenseDeletingEvent`). Pró-labore em
+  `withdrawal`: calculado de 2026 em diante, informado antes; MEI não tem.
 - **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
   `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não

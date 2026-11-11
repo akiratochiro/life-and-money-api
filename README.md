@@ -58,7 +58,7 @@ account only ever sees its own data.
   the statement, makes the month due again
 - **Business days**: a bill due on a weekend or national holiday can be paid on the next business
   day without being overdue. National holidays come from the free [BrasilAPI](https://brasilapi.com.br),
-  cached per year, with short timeouts and a weekends-only fallback, so the API never fails because
+  cached per year, with short timeouts and a local fallback (Easter-based holidays computed), so the API never fails because
   of it
 - **Archiving a category ends its budget and its bills** through a domain event, so no dead line
   is left behind
@@ -84,6 +84,11 @@ account only ever sees its own data.
   recurring ones computed like personal bills (effective-dated terms, only payments stored, paid,
   pending or overdue), per-company categories seeded on creation, a system-owned "Taxes" category
   and receipts reusing the attachments store
+- **Company taxes**: each month's obligations (DAS, DAS-MEI, the pró-labore DARF, DEFIS, DASN-SIMEI and
+  the user's own) computed from the regime of each competence, with the expected amount and the
+  calculation behind it; paying creates a "Taxes" expense and freezes the expected value, deleting that
+  expense releases the payment; pró-labore with INSS and IRRF calculated, an effective-dated planned
+  pró-labore, and a calculator comparing Anexo III (with the Fator R pró-labore) against Anexo V
 
 ## Tech stack
 
