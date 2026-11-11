@@ -12,7 +12,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Clock;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -24,25 +23,30 @@ import java.util.Set;
  * As notas fiscais da empresa, em duas etapas (decisão 20): a pré-visualização lê os arquivos e
  * diz o que encontrou, sem gravar nada; salvar é um segundo pedido, arquivo por arquivo. Assim uma
  * pré-visualização abandonada não deixa arquivo órfão, e não precisa de job de limpeza.
+ *
+ * <p>Só o XML entra, por enquanto (atualização da decisão 20): os valores vêm do documento assinado e
+ * ficam travados. Um PDF é recusado com a orientação de baixar o XML.
  */
 @Service
 public class InvoiceService {
 
-    static final Set<FileType> ACCEPTED = Set.of(FileType.XML, FileType.PDF);
+    /** O que é guardado: só o XML. O PDF é reconhecido apenas para a recusa explicar o que fazer. */
+    static final Set<FileType> ACCEPTED = Set.of(FileType.XML);
+    private static final Set<FileType> RECOGNIZED = Set.of(FileType.XML, FileType.PDF);
+    static final String XML_ONLY = "Por enquanto, as notas entram só pelo XML. Baixe o XML da nota no portal da NFS-e "
+            + "(o mesmo lugar de onde vem o PDF) e envie esse arquivo.";
     static final int MAX_FILES = 10;
     private static final DateTimeFormatter BR_DATE = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
     private final InvoiceRepository repository;
     private final CompanyService companyService;
     private final AttachmentService attachmentService;
-    private final Clock clock;
 
     public InvoiceService(InvoiceRepository repository, CompanyService companyService,
-                          AttachmentService attachmentService, Clock clock) {
+                          AttachmentService attachmentService) {
         this.repository = repository;
         this.companyService = companyService;
         this.attachmentService = attachmentService;
-        this.clock = clock;
     }
 
     /** Lê até 10 arquivos e diz, de cada um, se pode entrar e com que dados. Não grava nada. */
@@ -61,19 +65,18 @@ public class InvoiceService {
     private InvoicePreview previewOne(Company company, Upload file) {
         FileType type;
         try {
-            type = AttachmentService.check(file.filename(), file.content(), ACCEPTED);
+            type = AttachmentService.check(file.filename(), file.content(), RECOGNIZED);
         } catch (InvalidAttachmentException e) {
             return InvoicePreview.rejected(file.filename(), null, e.getMessage());
         }
-
         if (type == FileType.PDF) {
-            return previewPdf(company, file);
+            return InvoicePreview.rejected(file.filename(), type, XML_ONLY);
         }
 
         ParsedInvoice parsed;
         try {
             parsed = NfseXmlParser.parse(file.content());
-            checkXmlRules(company, parsed);
+            checkRules(company, parsed);
         } catch (InvoiceParseException | InvalidInvoiceException e) {
             return InvoicePreview.rejected(file.filename(), type, e.getMessage());
         }
@@ -86,73 +89,38 @@ public class InvoiceService {
                 warnings(company, parsed), InvoiceData.from(InvoiceFields.from(parsed)));
     }
 
-    private InvoicePreview previewPdf(Company company, Upload file) {
-        Optional<ParsedInvoice> parsed = DanfsePdfParser.parse(file.content());
-        if (parsed.isEmpty()) {
-            return new InvoicePreview(file.filename(), FileType.PDF, InvoicePreview.Status.NEEDS_INPUT,
-                    "Não reconhecemos os dados deste PDF. Preencha os campos à mão; o arquivo fica anexado à nota.",
-                    List.of(), null);
-        }
-        ParsedInvoice found = parsed.get();
-        if (found.accessKey() != null) {
-            Optional<Invoice> duplicate = repository.findByCompanyIdAndAccessKey(company.getId(), found.accessKey());
-            if (duplicate.isPresent()) {
-                return new InvoicePreview(file.filename(), FileType.PDF, InvoicePreview.Status.DUPLICATE,
-                        duplicateMessage(duplicate.get()), List.of(), InvoiceData.from(InvoiceFields.from(found)));
-            }
-        }
-        return new InvoicePreview(file.filename(), FileType.PDF, InvoicePreview.Status.NEEDS_INPUT,
-                "Confira os campos lidos do PDF e complete o que faltar antes de salvar.",
-                List.of(), InvoiceData.from(InvoiceFields.from(found)));
-    }
-
     /**
-     * Salva uma nota. Do XML, o servidor relê o arquivo e usa só os valores dele: os campos enviados
-     * são ignorados, porque os valores de uma nota assinada não mudam. Do PDF ou à mão, valem os
-     * campos que o usuário confirmou.
+     * Salva uma nota a partir do XML: o servidor relê o arquivo e usa só os valores dele, que não
+     * mudam depois (só o status muda).
      */
     @Transactional
-    public Invoice save(Long userId, Long companyId, Upload file, InvoiceData confirmed) {
+    public Invoice save(Long userId, Long companyId, Upload file) {
         Company company = companyService.getActiveOwned(userId, companyId);
-        FileType type = AttachmentService.check(file.filename(), file.content(), ACCEPTED);
-
-        InvoiceFields fields;
-        InvoiceSource source;
-        String replacedKey = null;
-        if (type == FileType.XML) {
-            ParsedInvoice parsed = NfseXmlParser.parse(file.content());
-            checkXmlRules(company, parsed);
-            fields = InvoiceFields.from(parsed);
-            source = InvoiceSource.XML;
-            replacedKey = parsed.replacedAccessKey();
-        } else {
-            if (confirmed == null) {
-                throw new InvalidInvoiceException("Confira os campos da nota antes de salvar.");
-            }
-            fields = confirmed.toFields();
-            checkTypedRules(company, fields);
-            source = DanfsePdfParser.parse(file.content()).isPresent() ? InvoiceSource.PDF : InvoiceSource.MANUAL;
+        if (AttachmentService.check(file.filename(), file.content(), RECOGNIZED) == FileType.PDF) {
+            throw new InvalidInvoiceException(XML_ONLY);
         }
+        ParsedInvoice parsed = NfseXmlParser.parse(file.content());
+        checkRules(company, parsed);
+        InvoiceFields fields = InvoiceFields.from(parsed);
 
-        if (fields.accessKey() != null) {
-            repository.findByCompanyIdAndAccessKey(companyId, fields.accessKey()).ifPresent(existing -> {
-                throw new DuplicateInvoiceException(duplicateMessage(existing));
-            });
-        }
+        repository.findByCompanyIdAndAccessKey(companyId, fields.accessKey()).ifPresent(existing -> {
+            throw new DuplicateInvoiceException(duplicateMessage(existing));
+        });
 
         Attachment attachment = attachmentService.store(userId, file.filename(), file.content(), ACCEPTED);
         Invoice invoice;
         try {
             // saveAndFlush: o UNIQUE do banco barra a mesma nota enviada em dois cliques simultâneos,
             // e o erro precisa aparecer aqui para virar a mesma mensagem amigável.
-            invoice = repository.saveAndFlush(new Invoice(userId, companyId, attachment.getId(), source, fields, replacedKey));
+            invoice = repository.saveAndFlush(new Invoice(userId, companyId, attachment.getId(), InvoiceSource.XML,
+                    fields, parsed.replacedAccessKey()));
         } catch (DataIntegrityViolationException e) {
             throw new DuplicateInvoiceException("Você já cadastrou esta nota.");
         }
 
         // A substituta cancela a substituída: legalmente, a anterior foi cancelada pela substituição.
-        if (replacedKey != null) {
-            repository.findByCompanyIdAndAccessKey(companyId, replacedKey).ifPresent(Invoice::cancel);
+        if (parsed.replacedAccessKey() != null) {
+            repository.findByCompanyIdAndAccessKey(companyId, parsed.replacedAccessKey()).ifPresent(Invoice::cancel);
         }
         return invoice;
     }
@@ -175,28 +143,6 @@ public class InvoiceService {
     public Invoice get(Long userId, Long companyId, Long invoiceId) {
         companyService.getOwned(userId, companyId);
         return find(companyId, invoiceId);
-    }
-
-    /** Corrige os campos de uma nota do PDF ou manual. A do XML só muda de status. */
-    @Transactional
-    public Invoice correct(Long userId, Long companyId, Long invoiceId, InvoiceData data) {
-        Company company = companyService.getActiveOwned(userId, companyId);
-        Invoice invoice = find(companyId, invoiceId);
-        if (invoice.getSource() == InvoiceSource.XML) {
-            throw new InvalidInvoiceException("Os valores de uma nota lida do XML não podem ser alterados: eles vêm "
-                    + "do documento assinado. Só o status muda.");
-        }
-        InvoiceFields fields = data.toFields();
-        checkTypedRules(company, fields);
-        if (fields.accessKey() != null) {
-            repository.findByCompanyIdAndAccessKey(companyId, fields.accessKey())
-                    .filter(other -> !other.getId().equals(invoiceId))
-                    .ifPresent(other -> {
-                        throw new DuplicateInvoiceException(duplicateMessage(other));
-                    });
-        }
-        invoice.correct(fields);
-        return invoice;
     }
 
     @Transactional
@@ -248,7 +194,7 @@ public class InvoiceService {
     }
 
     /** Regras de uma nota lida do XML, que traz o ambiente e o CNPJ do prestador. */
-    private void checkXmlRules(Company company, ParsedInvoice parsed) {
+    private void checkRules(Company company, ParsedInvoice parsed) {
         if (parsed.homologation()) {
             throw new InvalidInvoiceException("Esta é uma nota de homologação (ambiente de testes), sem valor fiscal. "
                     + "Envie a nota emitida em produção.");
@@ -257,24 +203,8 @@ public class InvoiceService {
             throw new InvalidInvoiceException("Esta nota foi emitida pelo CNPJ " + document(parsed.providerDocument())
                     + ", que não é o desta empresa (" + document(company.getCnpj()) + ").");
         }
-        checkCompetence(company, parsed.competenceDate());
-    }
-
-    /** Regras dos campos digitados ou conferidos (PDF e manual). */
-    private void checkTypedRules(Company company, InvoiceFields fields) {
-        checkCompetence(company, fields.competenceDate());
-        if (fields.issueDate().isAfter(LocalDate.now(clock))) {
-            throw new InvalidInvoiceException("A data de emissão não pode estar no futuro.");
-        }
-        if (fields.unconditionalDiscountAmount() != null
-                && fields.unconditionalDiscountAmount().compareTo(fields.serviceAmount()) > 0) {
-            throw new InvalidInvoiceException("O desconto não pode ser maior que o valor do serviço.");
-        }
-    }
-
-    private static void checkCompetence(Company company, LocalDate competence) {
-        if (competence.isBefore(company.getOpeningDate())) {
-            throw new InvalidInvoiceException("A competência desta nota (" + BR_DATE.format(competence)
+        if (parsed.competenceDate().isBefore(company.getOpeningDate())) {
+            throw new InvalidInvoiceException("A competência desta nota (" + BR_DATE.format(parsed.competenceDate())
                     + ") é anterior à abertura da empresa (" + BR_DATE.format(company.getOpeningDate()) + ").");
         }
     }

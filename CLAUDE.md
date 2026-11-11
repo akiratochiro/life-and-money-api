@@ -79,13 +79,14 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   Todo arquivo novo passa por `AttachmentService.store` (2 MB, tipo pelos **primeiros bytes** com
   `FileType.detect`, cota de 50 MB por usuário). Download sempre `attachment` + `nosniff`. O
   multipart do Spring está em 2 MB por arquivo e 21 MB por envio (413 em português).
-- **Notas fiscais** (`invoice`, decisão 20): pré-visualização (`/parse`) não grava nada; salvar
-  relê o XML e ignora os campos enviados (valores travados, só o status muda). `NfseXmlParser` e
-  `DanfsePdfParser` são puros; o XML recusa qualquer `DOCTYPE`. Caminhos conferidos nos XSDs
+- **Notas fiscais** (`invoice`, decisão 20): **só XML, por enquanto** (o PDF é reconhecido só para a
+  recusa orientar a baixar o XML; `PDF` e `MANUAL` ficam no enum e no `CHECK` para voltar sem
+  migration). Pré-visualização (`/parse`) não grava nada; salvar relê o XML (valores travados, só o
+  status muda). `NfseXmlParser` é puro e recusa qualquer `DOCTYPE`. Caminhos conferidos nos XSDs
   oficiais 1.00/1.01: ISS só retido com `tpRetISSQN` 2 ou 3, PIS/COFINS pela tabela de
   `tpRetPisCofins`, valores como emitidos. A receita é `vServ − vDescIncond`. Os testes usam a fixture
-  `src/test/resources/nfse/nfse-v101.xml` (construída do XSD, dados fictícios) e PDFs gerados por
-  `TestPdfs`; dados reais de notas nunca entram no repositório.
+  `src/test/resources/nfse/nfse-v101.xml` (construída do XSD, dados fictícios) e o PDF mínimo de
+  `TestPdfs` (para comprovantes e para a recusa); dados reais de notas nunca entram no repositório.
 - **Receita e despesas PJ** (decisões 21 e 22): a receita (`invoice/RevenueService`, `RevenueSeries`
   puro) é serviço − desconto incondicional das notas **ativas**, por competência, semana ISO, até
   93 dias, 53 semanas ou 36 meses. A despesa fixa (`companyexpense`) repete as contas pessoais:

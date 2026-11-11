@@ -590,6 +590,13 @@ without the XML covered, at the cost of manual checking. Until a real DANFSe is 
 its labels, the PDF parser only recognizes the access key, whose format does not depend on the
 layout.
 
+*Update (11/11/2026):* invoices are accepted **only as XML** for now. A PDF is still recognized by its
+first bytes, but only to answer with the guidance to download the XML from the NFS-e portal. The PDF
+parser, manual entry, field correction (`PUT`) and the PDFBox dependency were removed. `PDF` and
+`MANUAL` stay in `InvoiceSource` and in the database `CHECK`, so accepting PDFs again needs no
+migration. The reason: a parser built without a real DANFSe would pass its tests and fail on real
+files, and every value from the XML is exact and locked.
+
 ## 21. Company expenses: recurring ones computed like bills, one-offs as facts, system-owned "Taxes"
 
 **Context.** Companies spend on rent, an accountant, software, equipment. Some expenses repeat

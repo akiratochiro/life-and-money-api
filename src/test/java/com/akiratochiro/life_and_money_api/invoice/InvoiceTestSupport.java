@@ -17,11 +17,6 @@ final class InvoiceTestSupport {
              "legalNature": "SLU", "taxRegime": "SIMPLES_NACIONAL", "annexConfig": "FATOR_R"}
             """;
 
-    static final String MANUAL_DATA = """
-            {"number": "77", "issueDate": "2026-11-05", "competenceDate": "2026-11-01",
-             "serviceAmount": 3000, "netAmount": 2700, "irrfWithheldAmount": 45, "takerName": "Cliente Manual"}
-            """;
-
     private InvoiceTestSupport() {
     }
 
@@ -42,7 +37,4 @@ final class InvoiceTestSupport {
         return file(part, "nota.xml", "application/xml", xml.getBytes(StandardCharsets.UTF_8));
     }
 
-    static MockMultipartFile data(String json) {
-        return new MockMultipartFile("data", "", "application/json", json.getBytes(StandardCharsets.UTF_8));
-    }
 }

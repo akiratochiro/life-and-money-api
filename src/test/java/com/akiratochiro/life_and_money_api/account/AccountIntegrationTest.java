@@ -112,7 +112,7 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.companies[0].regimes.length()").value(1))
                 .andExpect(jsonPath("$.companies[0].partners[0].me").value(true))
                 .andExpect(jsonPath("$.invoices.length()").value(1))
-                .andExpect(jsonPath("$.invoices[0].invoice.number").value("77"))
+                .andExpect(jsonPath("$.invoices[0].invoice.number").value("42"))
                 .andExpect(jsonPath("$.expenseCategories.length()").value(7))
                 .andExpect(jsonPath("$.recurringExpenses[0].history.length()").value(1))
                 .andExpect(jsonPath("$.companyExpenses.length()").value(1))
@@ -193,15 +193,14 @@ class AccountIntegrationTest extends IntegrationTest {
                                 """.formatted(userId)))
                 .andExpect(status().isCreated());
         Long company = jdbc.queryForObject("select id from companies where user_id = ?", Long.class, userId);
-        // Uma nota digitada à mão, com um PDF sem texto anexado: cria linha em invoices e attachments.
+        // Uma nota pelo XML da fixture (a empresa não tem CNPJ, então a nota entra): linhas em invoices e attachments.
+        byte[] xml;
+        try (var in = getClass().getResourceAsStream("/nfse/nfse-v101.xml")) {
+            xml = in.readAllBytes();
+        }
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                         .multipart("/companies/{id}/invoices", company)
-                        .file(new org.springframework.mock.web.MockMultipartFile("file", "nota.pdf", "application/pdf",
-                                com.akiratochiro.life_and_money_api.invoice.TestPdfs.withLines()))
-                        .file(new org.springframework.mock.web.MockMultipartFile("data", "", "application/json", """
-                                {"number": "77", "issueDate": "%s", "competenceDate": "%s",
-                                 "serviceAmount": 3000, "netAmount": 2700}
-                                """.formatted(LocalDate.now(), LocalDate.now()).getBytes()))
+                        .file(new org.springframework.mock.web.MockMultipartFile("file", "nota.xml", "application/xml", xml))
                         .with(asUser(userId)))
                 .andExpect(status().isCreated());
         // Uma despesa fixa paga no mês corrente: linhas em company_recurring_expenses, nos termos e em company_expenses.

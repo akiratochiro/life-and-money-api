@@ -69,14 +69,6 @@ public class Invoice {
         apply(fields);
     }
 
-    /** Corrige os campos. Só para PDF e manual: a nota do XML tem os valores do documento assinado. */
-    void correct(InvoiceFields fields) {
-        if (source == InvoiceSource.XML) {
-            throw new IllegalStateException("Invoice " + id + " came from the XML and cannot be corrected");
-        }
-        apply(fields);
-    }
-
     void cancel() {
         status = InvoiceStatus.CANCELADA;
         updatedAt = Instant.now();

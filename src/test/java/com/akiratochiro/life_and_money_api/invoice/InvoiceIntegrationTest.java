@@ -22,7 +22,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -59,11 +58,11 @@ class InvoiceIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    void savingAnXmlKeepsTheValuesOfTheFileAndIgnoresWhatWasSent() throws Exception {
+    void savingAnXmlKeepsTheValuesOfTheFile() throws Exception {
         Long ana = register("nota.salvar@test.dev");
         Long company = createCompany(ana, PROVIDER_CNPJ);
 
-        save(ana, company, xmlFile("file", xml()), data(MANUAL_DATA))
+        save(ana, company, xmlFile("file", xml()))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.source").value("XML"))
                 .andExpect(jsonPath("$.status").value("ATIVA"))
@@ -89,12 +88,12 @@ class InvoiceIntegrationTest extends IntegrationTest {
     void theSameNoteIsMarkedInThePreviewAndRefusedWhenSaved() throws Exception {
         Long ana = register("nota.repetida@test.dev");
         Long company = createCompany(ana, PROVIDER_CNPJ);
-        save(ana, company, xmlFile("file", xml()), null).andExpect(status().isCreated());
+        save(ana, company, xmlFile("file", xml())).andExpect(status().isCreated());
 
         preview(ana, company, xmlFile("files", xml()))
                 .andExpect(jsonPath("$[0].status").value("DUPLICATE"))
                 .andExpect(jsonPath("$[0].message").value("Você já cadastrou esta nota (nº 42, competência 31/10/2026)."));
-        save(ana, company, xmlFile("file", xml()), null)
+        save(ana, company, xmlFile("file", xml()))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.detail").value("Você já cadastrou esta nota (nº 42, competência 31/10/2026)."));
     }
@@ -108,7 +107,7 @@ class InvoiceIntegrationTest extends IntegrationTest {
         preview(ana, company, xmlFile("files", xml()))
                 .andExpect(jsonPath("$[0].status").value("REJECTED"))
                 .andExpect(jsonPath("$[0].message").value(message));
-        save(ana, company, xmlFile("file", xml()), null)
+        save(ana, company, xmlFile("file", xml()))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.detail").value(message));
     }
@@ -133,7 +132,7 @@ class InvoiceIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$[0].status").value("REJECTED"))
                 .andExpect(jsonPath("$[0].message").value(
                         "Esta é uma nota de homologação (ambiente de testes), sem valor fiscal. Envie a nota emitida em produção."));
-        save(ana, company, xmlFile("file", xml().replace("<dCompet>2026-10-31</dCompet>", "<dCompet>2024-02-29</dCompet>")), null)
+        save(ana, company, xmlFile("file", xml().replace("<dCompet>2026-10-31</dCompet>", "<dCompet>2024-02-29</dCompet>")))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.detail").value(
                         "A competência desta nota (29/02/2024) é anterior à abertura da empresa (10/03/2024)."));
@@ -143,14 +142,14 @@ class InvoiceIntegrationTest extends IntegrationTest {
     void aReplacementCancelsTheNoteItReplaces() throws Exception {
         Long ana = register("nota.substituicao@test.dev");
         Long company = createCompany(ana, PROVIDER_CNPJ);
-        Long first = idOf(save(ana, company, xmlFile("file", xml()), null).andReturn());
+        Long first = idOf(save(ana, company, xmlFile("file", xml())).andReturn());
         String replacement = secondXml().replace("<tpEmit>1</tpEmit>",
                 "<tpEmit>1</tpEmit><subst><chSubstda>" + KEY + "</chSubstda><cMotivo>01</cMotivo></subst>");
 
         preview(ana, company, xmlFile("files", replacement))
                 .andExpect(jsonPath("$[0].warnings[0]")
                         .value("Esta nota substitui a nº 42 (competência 31/10/2026), que será marcada como cancelada."));
-        save(ana, company, xmlFile("file", replacement), null)
+        save(ana, company, xmlFile("file", replacement))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.replacedAccessKey").value(KEY));
 
@@ -158,48 +157,21 @@ class InvoiceIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.status").value("CANCELADA"));
     }
 
+    /** Por enquanto só o XML entra: o PDF é reconhecido para a recusa dizer o que fazer. */
     @Test
-    void aPdfWithTheKeyComesPrefilledAndIsSavedWithTheConfirmedFields() throws Exception {
+    void aPdfIsRefusedWithTheGuidanceToSendTheXml() throws Exception {
         Long ana = register("nota.pdf@test.dev");
         Long company = createCompany(ana, PROVIDER_CNPJ);
-        byte[] pdf = TestPdfs.withLines("Chave de Acesso da NFS-e", KEY);
+        String message = "Por enquanto, as notas entram só pelo XML. Baixe o XML da nota no portal da NFS-e "
+                + "(o mesmo lugar de onde vem o PDF) e envie esse arquivo.";
 
-        preview(ana, company, file("files", "nota.pdf", "application/pdf", pdf))
+        preview(ana, company, file("files", "nota.pdf", "application/pdf", TestPdfs.minimal()))
                 .andExpect(jsonPath("$[0].fileType").value("PDF"))
-                .andExpect(jsonPath("$[0].status").value("NEEDS_INPUT"))
-                .andExpect(jsonPath("$[0].message").value("Confira os campos lidos do PDF e complete o que faltar antes de salvar."))
-                .andExpect(jsonPath("$[0].fields.accessKey").value(KEY));
-
-        save(ana, company, file("file", "nota.pdf", "application/pdf", pdf),
-                data(MANUAL_DATA.replace("\"number\"", "\"accessKey\": \"" + KEY + "\", \"number\"")))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.source").value("PDF"))
-                .andExpect(jsonPath("$.number").value("77"))
-                .andExpect(jsonPath("$.accessKey").value(KEY))
-                .andExpect(jsonPath("$.netAmount").value(2700));
-    }
-
-    @Test
-    void anUnrecognizedPdfIsFilledByHandAndNeedsTheFields() throws Exception {
-        Long ana = register("nota.manual@test.dev");
-        Long company = createCompany(ana, PROVIDER_CNPJ);
-        byte[] scanned = TestPdfs.withLines();
-
-        preview(ana, company, file("files", "escaneada.pdf", "application/pdf", scanned))
-                .andExpect(jsonPath("$[0].status").value("NEEDS_INPUT"))
-                .andExpect(jsonPath("$[0].message").value(
-                        "Não reconhecemos os dados deste PDF. Preencha os campos à mão; o arquivo fica anexado à nota."));
-
-        save(ana, company, file("file", "escaneada.pdf", "application/pdf", scanned), null)
+                .andExpect(jsonPath("$[0].status").value("REJECTED"))
+                .andExpect(jsonPath("$[0].message").value(message));
+        save(ana, company, file("file", "nota.pdf", "application/pdf", TestPdfs.minimal()))
                 .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.detail").value("Confira os campos da nota antes de salvar."));
-        save(ana, company, file("file", "escaneada.pdf", "application/pdf", scanned), data("{\"issueDate\": \"2026-11-05\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.number").value("Informe o número da nota."));
-        save(ana, company, file("file", "escaneada.pdf", "application/pdf", scanned), data(MANUAL_DATA))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.source").value("MANUAL"))
-                .andExpect(jsonPath("$.accessKey").doesNotExist());
+                .andExpect(jsonPath("$.detail").value(message));
     }
 
     /** O tipo vem dos primeiros bytes: o nome e o Content-Type mandados pelo navegador não contam. */
@@ -239,7 +211,7 @@ class InvoiceIntegrationTest extends IntegrationTest {
                     + "values (?, 'antigo.pdf', 'application/pdf', 2097152, repeat('0', 64), '\\x00')", ana);
         }
 
-        save(ana, company, xmlFile("file", xml()), null)
+        save(ana, company, xmlFile("file", xml()))
                 .andExpect(status().isUnprocessableContent())
                 .andExpect(jsonPath("$.detail").value(
                         "Você atingiu o limite de 50 MB de arquivos. Apague notas ou comprovantes antigos para liberar espaço."));
@@ -262,7 +234,7 @@ class InvoiceIntegrationTest extends IntegrationTest {
         Long ana = register("nota.download@test.dev");
         Long company = createCompany(ana, PROVIDER_CNPJ);
         Long invoice = idOf(save(ana, company, file("file", "Nota Outubro.xml", "text/plain",
-                xml().getBytes(StandardCharsets.UTF_8)), null).andReturn());
+                xml().getBytes(StandardCharsets.UTF_8))).andReturn());
 
         mockMvc.perform(get("/companies/{id}/invoices/{iid}/file", company, invoice).with(asUser(ana)))
                 .andExpect(status().isOk())
@@ -278,7 +250,7 @@ class InvoiceIntegrationTest extends IntegrationTest {
     void cancellingAndReactivatingChangesOnlyTheStatus() throws Exception {
         Long ana = register("nota.status@test.dev");
         Long company = createCompany(ana, PROVIDER_CNPJ);
-        Long invoice = idOf(save(ana, company, xmlFile("file", xml()), null).andReturn());
+        Long invoice = idOf(save(ana, company, xmlFile("file", xml())).andReturn());
 
         mockMvc.perform(post("/companies/{id}/invoices/{iid}/cancel", company, invoice).with(asUser(ana)))
                 .andExpect(jsonPath("$.status").value("CANCELADA"))
@@ -288,30 +260,10 @@ class InvoiceIntegrationTest extends IntegrationTest {
     }
 
     @Test
-    void theValuesOfAnXmlNoteCannotBeCorrectedButAManualOneCan() throws Exception {
-        Long ana = register("nota.corrigir@test.dev");
-        Long company = createCompany(ana, PROVIDER_CNPJ);
-        Long fromXml = idOf(save(ana, company, xmlFile("file", xml()), null).andReturn());
-        Long manual = idOf(save(ana, company, file("file", "m.pdf", "application/pdf", TestPdfs.withLines()), data(MANUAL_DATA))
-                .andReturn());
-
-        correct(ana, company, fromXml, MANUAL_DATA)
-                .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.detail").value("Os valores de uma nota lida do XML não podem ser alterados: eles vêm "
-                        + "do documento assinado. Só o status muda."));
-        correct(ana, company, manual, MANUAL_DATA.replace("\"netAmount\": 2700", "\"netAmount\": 2650"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.netAmount").value(2650));
-        correct(ana, company, manual, MANUAL_DATA.replace("\"serviceAmount\": 3000", "\"serviceAmount\": 3000, \"unconditionalDiscountAmount\": 3500"))
-                .andExpect(status().isUnprocessableContent())
-                .andExpect(jsonPath("$.detail").value("O desconto não pode ser maior que o valor do serviço."));
-    }
-
-    @Test
     void deletingTheNoteDeletesItsFileAndUnlocksTheOpeningDate() throws Exception {
         Long ana = register("nota.excluir@test.dev");
         Long company = createCompany(ana, PROVIDER_CNPJ);
-        Long invoice = idOf(save(ana, company, xmlFile("file", xml()), null).andReturn());
+        Long invoice = idOf(save(ana, company, xmlFile("file", xml())).andReturn());
 
         mockMvc.perform(delete("/companies/{id}/invoices/{iid}", company, invoice).with(asUser(ana)))
                 .andExpect(status().isNoContent());
@@ -326,7 +278,7 @@ class InvoiceIntegrationTest extends IntegrationTest {
     void anArchivedCompanyKeepsItsNotesReadOnly() throws Exception {
         Long ana = register("nota.arquivada@test.dev");
         Long company = createCompany(ana, PROVIDER_CNPJ);
-        Long invoice = idOf(save(ana, company, xmlFile("file", xml()), null).andReturn());
+        Long invoice = idOf(save(ana, company, xmlFile("file", xml())).andReturn());
         mockMvc.perform(post("/companies/{id}/archive", company).with(asUser(ana))).andExpect(status().isOk());
 
         list(ana, company, 2026).andExpect(jsonPath("$", hasSize(1)));
@@ -363,20 +315,12 @@ class InvoiceIntegrationTest extends IntegrationTest {
         return mockMvc.perform(request.with(asUser(userId)));
     }
 
-    ResultActions save(Long userId, Long companyId, MockMultipartFile file, MockMultipartFile data) throws Exception {
-        var request = multipart("/companies/{id}/invoices", companyId).file(file);
-        if (data != null) {
-            request.file(data);
-        }
-        return mockMvc.perform(request.with(asUser(userId)));
+    ResultActions save(Long userId, Long companyId, MockMultipartFile file) throws Exception {
+        return mockMvc.perform(multipart("/companies/{id}/invoices", companyId).file(file).with(asUser(userId)));
     }
 
     private ResultActions list(Long userId, Long companyId, int year) throws Exception {
         return mockMvc.perform(get("/companies/{id}/invoices", companyId).param("year", String.valueOf(year)).with(asUser(userId)));
     }
 
-    private ResultActions correct(Long userId, Long companyId, Long invoiceId, String json) throws Exception {
-        return mockMvc.perform(put("/companies/{id}/invoices/{iid}", companyId, invoiceId).with(asUser(userId))
-                .contentType(MediaType.APPLICATION_JSON).content(json));
-    }
 }

@@ -3,7 +3,7 @@ package com.akiratochiro.life_and_money_api.invoice;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-/** Os campos de uma nota como o usuário confirmou ou digitou (PDF e manual). */
+/** Os campos de uma nota, como lidos do XML. */
 record InvoiceFields(
         String number,
         String accessKey,

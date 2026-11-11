@@ -188,7 +188,7 @@ class CompanyExpenseIntegrationTest extends IntegrationTest {
         Long company = company(ana);
         Long expense = idOf(oneOff(ana, company, "Cadeira", "800", category(ana, company, "Equipamentos"), "2026-11-02")
                 .andReturn());
-        byte[] pdf = TestPdfs.withLines("Recibo");
+        byte[] pdf = TestPdfs.minimal();
 
         receipt(ana, company, expense, new MockMultipartFile("file", "recibo.xml", "application/xml",
                 "<x/>".getBytes(StandardCharsets.UTF_8)))

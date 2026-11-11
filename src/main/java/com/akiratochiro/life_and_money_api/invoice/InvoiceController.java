@@ -3,7 +3,6 @@ package com.akiratochiro.life_and_money_api.invoice;
 import com.akiratochiro.life_and_money_api.attachment.Attachment;
 import com.akiratochiro.life_and_money_api.shared.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
-import jakarta.validation.Valid;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -31,7 +30,7 @@ public class InvoiceController {
 
     @PostMapping(path = "/parse", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(operationId = "previewInvoices",
-            summary = "Lê até 10 arquivos (XML ou PDF) e diz o que encontrou em cada um; não grava nada")
+            summary = "Lê até 10 arquivos XML e diz o que encontrou em cada um; não grava nada")
     public List<InvoicePreview> preview(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId,
                                         @RequestPart("files") List<MultipartFile> files) {
         return invoiceService.preview(CurrentUser.id(jwt), companyId, files.stream().map(InvoiceController::upload).toList());
@@ -39,12 +38,10 @@ public class InvoiceController {
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.CREATED)
-    @Operation(operationId = "createInvoice",
-            summary = "Salva uma nota: do XML, com os valores do arquivo; do PDF ou manual, com os campos confirmados em data")
+    @Operation(operationId = "createInvoice", summary = "Salva uma nota a partir do XML, com os valores do arquivo")
     public InvoiceResponse create(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId,
-                                  @RequestPart("file") MultipartFile file,
-                                  @Valid @RequestPart(value = "data", required = false) InvoiceData data) {
-        return InvoiceResponse.from(invoiceService.save(CurrentUser.id(jwt), companyId, upload(file), data));
+                                  @RequestPart("file") MultipartFile file) {
+        return InvoiceResponse.from(invoiceService.save(CurrentUser.id(jwt), companyId, upload(file)));
     }
 
     @GetMapping
@@ -64,13 +61,6 @@ public class InvoiceController {
     @Operation(operationId = "getInvoice")
     public InvoiceResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId, @PathVariable Long invoiceId) {
         return InvoiceResponse.from(invoiceService.get(CurrentUser.id(jwt), companyId, invoiceId));
-    }
-
-    @PutMapping("/{invoiceId}")
-    @Operation(operationId = "correctInvoice", summary = "Corrige os campos de uma nota do PDF ou manual")
-    public InvoiceResponse correct(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId,
-                                   @PathVariable Long invoiceId, @Valid @RequestBody InvoiceData data) {
-        return InvoiceResponse.from(invoiceService.correct(CurrentUser.id(jwt), companyId, invoiceId, data));
     }
 
     @PostMapping("/{invoiceId}/cancel")
@@ -97,7 +87,7 @@ public class InvoiceController {
      * navegador nunca interpreta dentro do nosso domínio um arquivo que veio do usuário.
      */
     @GetMapping("/{invoiceId}/file")
-    @Operation(operationId = "downloadInvoiceFile", summary = "Baixa o XML ou PDF original da nota")
+    @Operation(operationId = "downloadInvoiceFile", summary = "Baixa o XML original da nota")
     public ResponseEntity<byte[]> file(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId,
                                        @PathVariable Long invoiceId) {
         Attachment attachment = invoiceService.file(CurrentUser.id(jwt), companyId, invoiceId);

@@ -10,24 +10,22 @@ import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 /**
  * O que a pré-visualização diz sobre um arquivo. Nada foi gravado: salvar é um segundo pedido.
  *
- * @param fileType {@code XML} trava os campos; {@code PDF} os deixa para o usuário conferir
+ * @param fileType o tipo reconhecido; um PDF é recusado com a orientação de enviar o XML
  */
 public record InvoicePreview(
         @Schema(requiredMode = REQUIRED) String filename,
-        @Schema(description = "Ausente quando o arquivo nem é XML nem PDF") FileType fileType,
+        @Schema(description = "Ausente quando o arquivo não foi reconhecido") FileType fileType,
         @Schema(requiredMode = REQUIRED) Status status,
         @Schema(description = "O que fazer com este arquivo, quando há algo a dizer") String message,
         @Schema(requiredMode = REQUIRED, description = "Avisos que não impedem salvar") List<String> warnings,
-        @Schema(description = "O que foi reconhecido; pode vir incompleto num PDF") InvoiceData fields
+        @Schema(description = "O que foi lido do XML") InvoiceData fields
 ) {
     public enum Status {
         /** Lida do XML e pronta para salvar, com os valores travados. */
         READY,
-        /** Do PDF: o que foi reconhecido precisa ser conferido e completado. */
-        NEEDS_INPUT,
         /** A empresa já tem esta nota. */
         DUPLICATE,
-        /** Não pode entrar: arquivo inválido, outro CNPJ, homologação, antes da abertura. */
+        /** Não pode entrar: PDF (só XML, por enquanto), arquivo inválido, outro CNPJ, homologação, antes da abertura. */
         REJECTED
     }
 

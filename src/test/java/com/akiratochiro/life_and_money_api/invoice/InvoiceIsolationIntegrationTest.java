@@ -13,7 +13,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -41,8 +40,6 @@ class InvoiceIsolationIntegrationTest extends IntegrationTest {
                 get("/companies/{id}/invoices/{iid}", anasCompany, anasInvoice).with(asUser(bruno)),
                 get("/companies/{id}/invoices/{iid}/file", anasCompany, anasInvoice).with(asUser(bruno)),
                 post("/companies/{id}/invoices/{iid}/cancel", anasCompany, anasInvoice).with(asUser(bruno)),
-                put("/companies/{id}/invoices/{iid}", anasCompany, anasInvoice).with(asUser(bruno))
-                        .contentType(MediaType.APPLICATION_JSON).content(MANUAL_DATA),
                 delete("/companies/{id}/invoices/{iid}", anasCompany, anasInvoice).with(asUser(bruno)),
                 multipart("/companies/{id}/invoices/parse", anasCompany).file(xmlFile("files", xml())).with(asUser(bruno)),
                 multipart("/companies/{id}/invoices", anasCompany).file(xmlFile("file", secondXml())).with(asUser(bruno)),
