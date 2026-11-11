@@ -526,3 +526,66 @@ calling only `/api`. The cost is one more external dependency, contained like th
 breaks when it is down. On 11/11/2026 the BrasilAPI answered `404` for the Receita's own alphanumeric
 example, so it is not confirmed to know the new format yet; the form says so instead of implying the
 CNPJ is wrong. The CNPJ travels without the slash, which would split the URL path.
+
+## 19. Files stored in Postgres (`bytea`), in a reusable attachments table, with a per-user quota
+
+**Context.** Invoices (and, in phase 3, expense receipts) keep their original file: the XML or PDF
+of the NFS-e. Files must be deleted with the account, exported, and served back only to their owner.
+
+**Decision.** An `attachments` table holds the bytes in `bytea`, with the name, the detected type,
+the size and a SHA-256. Features that use files (`invoices`, later `company_expenses`) store only the
+attachment id, so listing invoices never loads a byte. Three limits live in `AttachmentService`:
+2 MB per file, the types each caller accepts, and **50 MB per user**. The type is detected from
+the first bytes of the file (`%PDF-`, the PNG and JPEG signatures, `<` after an optional BOM), never
+from the browser's `Content-Type` or the extension, which anyone can change. Downloads are always
+`Content-Disposition: attachment` with `nosniff`, so the browser never renders a user's file inside
+our origin. Spring's multipart limits match: `max-file-size: 2MB`, `max-request-size: 21MB`, and the
+413 is answered in Portuguese.
+
+**Consequences.** The options considered were object storage (S3, Cloudflare R2) and the database.
+Object storage scales better and keeps the database small, but it is one more service with its own
+keys, its own deletion path for account removal and no shared transaction: a crash between the
+upload and the insert leaves an orphan on one side or the other. In the database, an invoice and its
+file are saved, exported and deleted in the same transaction, with nothing new to configure. The cost
+is space in Neon's free 1 GB: an NFS-e XML has 10–30 KB and a DANFSe 100–300 KB, so typical use is
+small, and the quota stops a single user from filling the database. If the quota ever has to grow,
+the attachments table is the single place to move to object storage.
+
+## 20. NFS-e: the XML is the source of truth, the PDF a confirmed fallback, in two steps
+
+**Context.** The company's revenue comes from the invoices (NFS-e) it issues. The national standard
+(gov.br/nfse) has an official XML layout; the PDF (DANFSe) is a printout whose layout is not a
+contract.
+
+**Decision.**
+- **Two steps.** `POST /invoices/parse` reads up to 10 files and answers, per file, what was found
+  (`READY`, `NEEDS_INPUT`, `DUPLICATE`, `REJECTED`), saving nothing. Saving is a second request,
+  per file. An abandoned preview leaves no orphan file and needs no cleanup job.
+- **The XML locks the values.** On save, the server parses the XML again and ignores any fields
+  sent; afterwards only the status changes. Paths were checked against the official XSDs 1.00 and
+  1.01 (package of 09/02/2026): ISS counts as withheld only when `tpRetISSQN` is 2 or 3, PIS and COFINS
+  only when `tpRetPisCofins` says so (a 10-code table whose 1 and 2 match the old codes), and the net
+  and withheld amounts are kept as issued, because the official Anexo I contradicts itself on how to
+  recompute them. The unconditional discount is stored separately: it is not gross revenue (LC 123,
+  art. 3, §1).
+- **The PDF is a suggestion.** PDFBox extracts the text and the user confirms or completes the
+  fields; a PDF with nothing recognized (scanned, protected) is filled by hand with the file
+  attached.
+- **Rules:** a note from another CNPJ is refused when the company has one; a homologation note
+  (`tpAmb = 2`) is refused; a competence before the opening date is refused; the same access key
+  cannot enter twice (checked in the preview and by a `UNIQUE`); a note that replaces another
+  (`chSubstda`) cancels the replaced one if it is registered. Cancellation is otherwise manual, since
+  it is a separate event that never changes the note's XML.
+- **Parser hardening:** any `DOCTYPE` is refused, which closes external entities (XXE) and entity
+  expansion at once; the parser is namespace-aware and matches elements by namespace and local
+  name, so prefixed XML works too.
+- **The digital signature is not verified.** That would require the ICP-Brasil certificate chain.
+  The notes are the user's own, for their own control, and never leave the app as fiscal documents,
+  so a forged XML would only mislead its author.
+- Invoices implement the `OpeningDateLock` from decision 17: with any invoice, the opening date is
+  locked.
+
+**Consequences.** Values from the XML are exact and cannot drift by typing; the PDF path keeps users
+without the XML covered, at the cost of manual checking. Until a real DANFSe is available to confirm
+its labels, the PDF parser only recognizes the access key, whose format does not depend on the
+layout.

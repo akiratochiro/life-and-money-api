@@ -68,6 +68,12 @@ account only ever sees its own data.
   their time; legal combinations checked in code and again in the database, alphanumeric CNPJs
   (July 2026 rule) validated, partners, archiving, and a CNPJ lookup through the BrasilAPI that
   pre-fills the form and never blocks it
+- **Invoices (NFS-e)**: upload in two steps (a preview that saves nothing, then save per file) of the
+  national-standard XML, whose paths were checked against the official XSDs, or of the PDF as a
+  confirmed fallback; values from the XML are locked, notes from another CNPJ, homologation notes and
+  duplicates are refused, a replacement cancels the note it replaces, and the original file is kept in
+  Postgres with the type detected from its bytes, 2 MB per file and a 50 MB quota per user. The XML
+  parser refuses any DOCTYPE (XXE)
 
 ## Tech stack
 
@@ -136,6 +142,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Bills | `POST /bills` · `GET /bills` · `PUT /bills/{id}` · `DELETE /bills/{id}` · `GET /bills/occurrences?month=YYYY-MM` · `GET /bills/upcoming` · `POST /bills/{id}/occurrences/{month}/payment` · `DELETE /bills/{id}/occurrences/{month}/payment` |
 | Dashboard | `GET /dashboard/expenses-by-category?month=` · `GET /dashboard/monthly-totals?months=` · `GET /dashboard/budget?month=` |
 | Companies | `POST /companies` · `GET /companies` · `GET /companies/{id}` · `PATCH /companies/{id}` · `POST /companies/{id}/archive` · `POST /companies/{id}/unarchive` · `GET /companies/{id}/regimes` · `POST /companies/{id}/regimes` · `DELETE /companies/{id}/regimes/latest` · `GET/POST /companies/{id}/partners` · `PATCH/DELETE /companies/{id}/partners/{partnerId}` · `GET /cnpj/{cnpj}` |
+| Invoices | `POST /companies/{id}/invoices/parse` · `POST /companies/{id}/invoices` · `GET /companies/{id}/invoices?year=` · `GET /companies/{id}/invoices/years` · `GET/PUT/DELETE /companies/{id}/invoices/{invoiceId}` · `POST .../cancel` · `POST .../reactivate` · `GET .../file` · `GET /attachments/usage` |
 | Holidays | `GET /holidays?year=YYYY` |
 | Health | `GET /health` |
 
