@@ -641,3 +641,50 @@ November is shown whole. Periods without invoices come as zero. A request is lim
 
 **Consequences.** The chart never skips a month and every bar covers a full period. The bounds keep
 responses small on the free instance; longer views can page through ranges.
+
+## 23. A pure tax engine with effective-dated rules and parameters
+
+**Context.** Phase 4 computes the DAS of the Simples Nacional (Anexos III and V), the fixed DAS-MEI,
+the INSS and IRRF of a partner's pró-labore, the Fator R and the due dates. The numbers change every
+year (minimum wage, INSS ceiling, IRRF table), and on 01/01/2027 the rules themselves change (Res.
+CGSN 190/2026 and LC 214/2025: CBS/IBS in the Simples, a new RBT12 window, Fator R and DAS-MEI rules).
+
+**Decision.**
+- **`taxengine` is pure domain code**: no Spring, no JPA. It receives a `TaxTable` (the parameters
+  valid on a date) and plain values, and returns value objects carrying the calculation memory
+  (bracket, effective rate, RBT12, Fator R, annex). It is tested with the hand-made examples of the
+  phase plan, and against the Receita's official example for Lei 15.270 (salary 6,000 → IRRF 382.88).
+  A test reads the package's imports and fails on any framework import (no ArchUnit dependency).
+- **Parameters live in tables with effective dating** (`tax_parameters`, `simples_brackets`,
+  `irrf_brackets`), each row with its legal source; `taxparam` builds the `TaxTable` for a month. A
+  test checks that the seeded table is exactly the one the engine tests use.
+- **Rules are versioned too.** The engine implements the 2018–2026 rules and refuses competences
+  from 01/2027 with a clear message (`TaxRules`); the 2027 rules come in their own delivery, before
+  the first 2027 DAS (20/02/2027), read from the official text. Calculations start at the 01/2026
+  competence; earlier months show no expected value.
+- **Choices worth knowing:** the partner's INSS is a flat 11% capped at the ceiling (not the
+  employee's progressive table); the IRRF reduction of Lei 15.270 uses the gross income, as in the
+  Receita's examples; INSS, table tax and reduction are rounded to cents (HALF_UP) and rates keep 10
+  significant digits; withheld ISS leaves the DAS, its share capped at 5%; above the R$ 3.6 million
+  sublimit nothing is computed; the Fator R payroll excludes the CPP (inside the DAS in Anexos III and
+  V), so it never overstates; no IRRF dependents yet.
+
+**Consequences.** The heart of the module is testable in milliseconds and readable as a set of
+formulas. Rules and values are data plus a versioned code path, so 2027 is an addition, not a rewrite.
+The price is a duplicated 2026 table in the tests, kept honest by the seed-equality test.
+
+## 24. Rules read only in an unofficial compilation are tracked until checked
+
+**Context.** On 11/11/2026 the official text of Res. CGSN 140/2018 could not be opened (the
+Receita's normas site renders only with JavaScript, and Planalto refused automated access), so some
+details came from an unofficial compilation: the start-up RBT12 and Fator R, withheld ISS in the DAS,
+the DAS due-date shift, the DEFIS and DASN dates, and the MEI 20% tolerance (LC 123, art. 18-A, §7).
+
+**Decision.** Each of them is an entry of `UnverifiedLegalSource`, referenced from the code that
+implements it. A test tagged `pre-deploy` fails while the list is not empty; it is excluded from the
+normal suite (`surefire.excludedGroups`) and run before pushing with
+`./mvnw test -Dgroups=pre-deploy -Dsurefire.excludedGroups=`. Checking a rule against the official
+text means deleting its entry.
+
+**Consequences.** Work goes on without pretending the sources were verified, and the gap cannot be
+forgotten at deploy time. The normal suite and CI stay green.

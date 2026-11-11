@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -95,6 +95,14 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   Categorias por empresa, semeadas pelo `CompanyCreatedEvent`; "Impostos" (`system_key = TAXES`) não é
   escolhível nem editável; arquivar encerra as fixas (`ExpenseCategoryArchivedEvent`). Comprovante:
   PDF, JPEG ou PNG pelo `AttachmentService`.
+- **Impostos** (decisões 23 e 24): `taxengine` é **puro** (sem Spring/JPA; o `TaxEnginePurityTest`
+  acusa) e recebe uma `TaxTable`; `taxparam` monta a tabela de uma competência a partir de
+  `tax_parameters`, `simples_brackets` e `irrf_brackets` (vigência + fonte legal por linha; valor novo é
+  linha nova numa migration nova). Calcula de 01/2026 a 12/2026; 2027 é recusado (`TaxRules`) até a
+  entrega das regras novas. INSS do sócio = 11% até o teto; redução da Lei 15.270 sobre o bruto;
+  dinheiro arredondado para centavos (HALF_UP), alíquotas com 10 dígitos. Os testes do motor usam
+  `Tables2026`, e o `TaxParameterIntegrationTest` confere que a V18 é igual. Regra lida só em
+  compilação não oficial entra em `UnverifiedLegalSource`.
 - **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
   `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não
@@ -155,6 +163,8 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 - **Passos pequenos, um commit por passo**, em Conventional Commits (`feat:`, `fix:`, `test:`,
   `docs:`, `build:`, `ci:`, `chore:`, `refactor:`). As mensagens do histórico estão em
   português; mantenha o padrão.
+- **Antes do push, rode também `./mvnw test -Dgroups=pre-deploy -Dsurefire.excludedGroups=`**: ele
+  falha enquanto houver regra tributária não conferida no texto oficial (decisão 24).
 - **Commits direto na `main`, sem branches nem pull requests.** Cada passo vira um commit na
   `main`, e o push é feito ao fim da tarefa, depois de os testes e o build passarem na máquina.
   Push na `main` vai para o ar (a API no Render, o front no Cloudflare Workers) e a CI só roda
