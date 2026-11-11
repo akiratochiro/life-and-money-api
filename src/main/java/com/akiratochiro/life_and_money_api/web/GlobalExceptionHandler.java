@@ -17,6 +17,11 @@ import com.akiratochiro.life_and_money_api.budget.IncomeCategoryBudgetException;
 import com.akiratochiro.life_and_money_api.category.CategoryAlreadyExistsException;
 import com.akiratochiro.life_and_money_api.category.CategoryArchivedException;
 import com.akiratochiro.life_and_money_api.category.CategoryNotFoundException;
+import com.akiratochiro.life_and_money_api.company.CnpjAlreadyRegisteredException;
+import com.akiratochiro.life_and_money_api.company.CompanyArchivedException;
+import com.akiratochiro.life_and_money_api.company.CompanyNotFoundException;
+import com.akiratochiro.life_and_money_api.company.InvalidCompanyDataException;
+import com.akiratochiro.life_and_money_api.company.OpeningDateLockedException;
 import com.akiratochiro.life_and_money_api.goal.InvalidGoalDeadlineException;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimitExceededException;
 import com.akiratochiro.life_and_money_api.shared.GoalNotFoundException;
@@ -109,6 +114,16 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    /** Uma regra da empresa (enquadramento, CNPJ, emoji, datas): o campo vai marcado no formulário. */
+    @ExceptionHandler(InvalidCompanyDataException.class)
+    public ProblemDetail handleInvalidCompanyData(InvalidCompanyDataException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(
+                HttpStatus.BAD_REQUEST, "Confira os campos destacados e tente de novo.");
+        problem.setTitle("Dados inválidos");
+        problem.setProperty("errors", Map.of(ex.getField(), ex.getMessage()));
+        return problem;
+    }
+
     @ExceptionHandler(InvalidConfirmationTokenException.class)
     public ProblemDetail handleInvalidConfirmationToken(InvalidConfirmationTokenException ex) {
         return problem(HttpStatus.BAD_REQUEST, "Link inválido", ex);
@@ -187,6 +202,11 @@ public class GlobalExceptionHandler {
         return notFound("Pagamento não encontrado", ex);
     }
 
+    @ExceptionHandler(CompanyNotFoundException.class)
+    public ProblemDetail handleCompanyNotFound(CompanyNotFoundException ex) {
+        return notFound("Empresa não encontrada", ex);
+    }
+
     // 409
 
     @ExceptionHandler(EmailAlreadyInUseException.class)
@@ -217,6 +237,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(BillEndedException.class)
     public ProblemDetail handleBillEnded(BillEndedException ex) {
         return conflict("Conta encerrada", ex);
+    }
+
+    /** Com o campo marcado, como um erro de validação, mas 409: o valor é válido, só já existe. */
+    @ExceptionHandler(CnpjAlreadyRegisteredException.class)
+    public ProblemDetail handleCnpjAlreadyRegistered(CnpjAlreadyRegisteredException ex) {
+        ProblemDetail problem = conflict("CNPJ repetido", ex);
+        problem.setProperty("errors", Map.of("cnpj", ex.getMessage()));
+        return problem;
+    }
+
+    @ExceptionHandler(CompanyArchivedException.class)
+    public ProblemDetail handleCompanyArchived(CompanyArchivedException ex) {
+        return conflict("Empresa arquivada", ex);
+    }
+
+    @ExceptionHandler(OpeningDateLockedException.class)
+    public ProblemDetail handleOpeningDateLocked(OpeningDateLockedException ex) {
+        ProblemDetail problem = conflict("Data de abertura travada", ex);
+        problem.setProperty("errors", Map.of("openingDate", ex.getMessage()));
+        return problem;
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)

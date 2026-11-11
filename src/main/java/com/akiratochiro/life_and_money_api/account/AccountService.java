@@ -6,6 +6,7 @@ import com.akiratochiro.life_and_money_api.budget.BudgetItemResponse;
 import com.akiratochiro.life_and_money_api.budget.BudgetService;
 import com.akiratochiro.life_and_money_api.category.CategoryResponse;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
+import com.akiratochiro.life_and_money_api.company.CompanyService;
 import com.akiratochiro.life_and_money_api.goal.GoalService;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimit;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimiter;
@@ -34,6 +35,7 @@ class AccountService {
     private final BudgetService budgetService;
     private final GoalService goalService;
     private final BillService billService;
+    private final CompanyService companyService;
     private final AccountCredentials accountCredentials;
     private final RateLimiter rateLimiter;
     private final Clock clock;
@@ -44,6 +46,7 @@ class AccountService {
                    BudgetService budgetService,
                    GoalService goalService,
                    BillService billService,
+                   CompanyService companyService,
                    AccountCredentials accountCredentials,
                    RateLimiter rateLimiter,
                    Clock clock) {
@@ -53,6 +56,7 @@ class AccountService {
         this.budgetService = budgetService;
         this.goalService = goalService;
         this.billService = billService;
+        this.companyService = companyService;
         this.accountCredentials = accountCredentials;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
@@ -68,7 +72,8 @@ class AccountService {
                 transactionService.listAll(userId).stream().map(TransactionResponse::from).toList(),
                 budgetService.listAll(userId).stream().map(BudgetItemResponse::from).toList(),
                 goalService.list(userId),
-                billService.listAll(userId));
+                billService.listAll(userId),
+                companyService.listAll(userId));
     }
 
     /**
@@ -87,6 +92,7 @@ class AccountService {
         rateLimiter.consume(RateLimit.ACCOUNT_DELETION_PER_USER, String.valueOf(userId));
         userService.verifyPassword(userId, password);
 
+        companyService.deleteAllOf(userId);
         billService.deleteAllOf(userId);
         transactionService.deleteAllOf(userId);
         budgetService.deleteAllOf(userId);

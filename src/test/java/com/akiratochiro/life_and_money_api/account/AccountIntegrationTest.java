@@ -107,12 +107,17 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.bills.length()").value(1))
                 .andExpect(jsonPath("$.bills[0].terms[0].name").value("Aluguel " + ana))
                 .andExpect(jsonPath("$.bills[0].payments.length()").value(1))
+                .andExpect(jsonPath("$.companies.length()").value(1))
+                .andExpect(jsonPath("$.companies[0].name").value("Estúdio " + ana))
+                .andExpect(jsonPath("$.companies[0].regimes.length()").value(1))
+                .andExpect(jsonPath("$.companies[0].partners[0].me").value(true))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
         assertThat(body)
-                .contains("Mercado " + ana, "Reserva " + ana, "Aluguel " + ana)
-                .doesNotContain("export.bia@test.dev", "Mercado " + bia, "Reserva " + bia, "Aluguel " + bia)
+                .contains("Mercado " + ana, "Reserva " + ana, "Aluguel " + ana, "Estúdio " + ana)
+                .doesNotContain("export.bia@test.dev", "Mercado " + bia, "Reserva " + bia, "Aluguel " + bia,
+                        "Estúdio " + bia)
                 .as("credenciais não são dados da pessoa")
                 .doesNotContainIgnoringCase("passwordHash")
                 .doesNotContainIgnoringCase("tokenHash");
@@ -128,7 +133,8 @@ class AccountIntegrationTest extends IntegrationTest {
         assertThat(tables).as("as tabelas com dados de usuário")
                 .contains("categories", "transactions", "budget_items", "savings_goals",
                         "refresh_tokens", "password_reset_tokens",
-                        "scheduled_bills", "scheduled_bill_terms", "bill_payments");
+                        "scheduled_bills", "scheduled_bill_terms", "bill_payments",
+                        "companies", "company_regimes", "partners");
 
         Map<String, Long> rows = new LinkedHashMap<>();
         rows.put("users", jdbc.queryForObject("select count(*) from users where id = ?", Long.class, userId));
@@ -170,6 +176,14 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andReturn());
         mockMvc.perform(post("/bills/{id}/occurrences/{month}/payment", bill, java.time.YearMonth.now())
                         .with(asUser(userId)))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(post("/companies").with(asUser(userId))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"name": "Estúdio %d", "emoji": "💼", "openingDate": "2024-03-10",
+                                 "legalNature": "MEI", "taxRegime": "SIMEI", "meiActivity": "SERVICOS"}
+                                """.formatted(userId)))
                 .andExpect(status().isCreated());
 
         login(email).andExpect(status().isOk());

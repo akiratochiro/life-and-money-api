@@ -3,6 +3,7 @@ package com.akiratochiro.life_and_money_api.account;
 import com.akiratochiro.life_and_money_api.bill.BillExport;
 import com.akiratochiro.life_and_money_api.budget.BudgetItemResponse;
 import com.akiratochiro.life_and_money_api.category.CategoryResponse;
+import com.akiratochiro.life_and_money_api.company.CompanyExport;
 import com.akiratochiro.life_and_money_api.goal.SavingsGoalResponse;
 import com.akiratochiro.life_and_money_api.transaction.TransactionResponse;
 import com.akiratochiro.life_and_money_api.user.UserResponse;
@@ -26,6 +27,8 @@ public record AccountExport(
         List<BudgetItemResponse> budgetItems,
         @Schema(requiredMode = REQUIRED) List<SavingsGoalResponse> goals,
         @Schema(requiredMode = REQUIRED, description = "Contas a pagar e a receber, com todo o histórico")
-        List<BillExport> bills
+        List<BillExport> bills,
+        @Schema(requiredMode = REQUIRED, description = "Empresas, arquivadas inclusive, com o histórico de enquadramento e os sócios")
+        List<CompanyExport> companies
 ) {
 }
