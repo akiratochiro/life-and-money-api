@@ -74,6 +74,11 @@ account only ever sees its own data.
   duplicates are refused, a replacement cancels the note it replaces, and the original file is kept in
   Postgres with the type detected from its bytes, 2 MB per file and a 50 MB quota per user. The XML
   parser refuses any DOCTYPE (XXE)
+- **Company revenue and expenses**: revenue by competence (active invoices, minus unconditional
+  discounts) by day, ISO week or month, with zero-filled periods; one-off expenses as facts and
+  recurring ones computed like personal bills (effective-dated terms, only payments stored, paid,
+  pending or overdue), per-company categories seeded on creation, a system-owned "Taxes" category
+  and receipts reusing the attachments store
 
 ## Tech stack
 
@@ -143,6 +148,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Dashboard | `GET /dashboard/expenses-by-category?month=` · `GET /dashboard/monthly-totals?months=` · `GET /dashboard/budget?month=` |
 | Companies | `POST /companies` · `GET /companies` · `GET /companies/{id}` · `PATCH /companies/{id}` · `POST /companies/{id}/archive` · `POST /companies/{id}/unarchive` · `GET /companies/{id}/regimes` · `POST /companies/{id}/regimes` · `DELETE /companies/{id}/regimes/latest` · `GET/POST /companies/{id}/partners` · `PATCH/DELETE /companies/{id}/partners/{partnerId}` · `GET /cnpj/{cnpj}` |
 | Invoices | `POST /companies/{id}/invoices/parse` · `POST /companies/{id}/invoices` · `GET /companies/{id}/invoices?year=` · `GET /companies/{id}/invoices/years` · `GET/PUT/DELETE /companies/{id}/invoices/{invoiceId}` · `POST .../cancel` · `POST .../reactivate` · `GET .../file` · `GET /attachments/usage` |
+| Company revenue and expenses | `GET /companies/{id}/revenue?from=&to=&granularity=` · `GET/POST /companies/{id}/expense-categories` · `PATCH .../{categoryId}` · `POST .../{categoryId}/archive` · `GET /companies/{id}/expenses?month=` · `POST /companies/{id}/expenses` · `PUT/DELETE .../expenses/{expenseId}` · `PUT/GET/DELETE .../expenses/{expenseId}/receipt` · `GET/POST /companies/{id}/recurring-expenses` · `PUT/DELETE .../recurring-expenses/{recurringId}` · `POST/DELETE .../recurring-expenses/{recurringId}/occurrences/{month}/payment` |
 | Holidays | `GET /holidays?year=YYYY` |
 | Health | `GET /health` |
 

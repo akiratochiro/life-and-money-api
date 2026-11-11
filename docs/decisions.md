@@ -589,3 +589,48 @@ contract.
 without the XML covered, at the cost of manual checking. Until a real DANFSe is available to confirm
 its labels, the PDF parser only recognizes the access key, whose format does not depend on the
 layout.
+
+## 21. Company expenses: recurring ones computed like bills, one-offs as facts, system-owned "Taxes"
+
+**Context.** Companies spend on rent, an accountant, software, equipment. Some expenses repeat
+every month with an amount that changes over time; others happen once. Phase 7's balance subtracts
+only what was actually paid, and phase 9's calendar needs what is still pending.
+
+**Decision.**
+- **Recurring expenses repeat decision 9.** `company_recurring_expenses` is the identity (first and
+  optional last month), `company_recurring_expense_terms` holds name, category, expected amount and
+  due day with effective dating, months are computed by `ExpenseCalendar` and only the **payment**
+  becomes a row in `company_expenses`, with the real amount and date. Editing applies from the
+  current month; deleting removes an expense that was never paid and ends one that was, at the
+  previous month or the last paid one. A payment copies the name and category of the month's terms,
+  so a paid month never changes afterwards. Month views group payments by the due month (October's
+  rent paid on November 3rd belongs to October).
+- **A one-off expense is a fact:** it was paid on its date, so the date cannot be in the future.
+- **Overdue counts by the calendar day**, without the business-day rule of personal bills: a company
+  expense is not a bank slip with a grace period.
+- **Categories per company**, seeded by a `CompanyCreatedEvent` that `company` now publishes
+  (`company` cannot call `companyexpense`, which depends on it), the same shape as
+  `UserRegisteredEvent` and the default personal categories; V15 seeds companies that already
+  existed. "Salários e encargos" counts as payroll for the Fator R. **"Impostos" belongs to the system**
+  (`system_key = TAXES`): it cannot be chosen for a manual expense, renamed or archived, because tax
+  payments (phase 4) land there and a manual entry would break the "expected × paid" report.
+  Archiving a category ends its recurring expenses, through an event, as with personal bills.
+- **Receipts** reuse the attachments of decision 19, accepting PDF, JPEG and PNG.
+
+**Consequences.** The behavior and the code shape match personal bills, so the reasoning is defended
+once. An expense that is "automatically paid every month" would be simpler, but the balance would
+subtract rent that has not left the account yet. The cost is a click to mark each month as paid, and
+a second table pair to keep in sync with the bills design if that design ever changes.
+
+## 22. Revenue series: by competence, minus unconditional discounts, ISO weeks, bounded ranges
+
+**Context.** The company overview shows revenue by day, week or month.
+
+**Decision.** Revenue is the sum of `service − unconditional discount` of **active** invoices, by
+competence date (`RevenueSeries`, pure). Weeks are ISO (Monday to Sunday), identified by their Monday,
+and the requested range is widened to whole periods, so a week that starts in October and ends in
+November is shown whole. Periods without invoices come as zero. A request is limited to 93 days,
+53 weeks or 36 months, answered with a `400` in Portuguese otherwise.
+
+**Consequences.** The chart never skips a month and every bar covers a full period. The bounds keep
+responses small on the free instance; longer views can page through ranges.

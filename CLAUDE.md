@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -86,6 +86,14 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   `tpRetPisCofins`, valores como emitidos. A receita é `vServ − vDescIncond`. Os testes usam a fixture
   `src/test/resources/nfse/nfse-v101.xml` (construída do XSD, dados fictícios) e PDFs gerados por
   `TestPdfs`; dados reais de notas nunca entram no repositório.
+- **Receita e despesas PJ** (decisões 21 e 22): a receita (`invoice/RevenueService`, `RevenueSeries`
+  puro) é serviço − desconto incondicional das notas **ativas**, por competência, semana ISO, até
+  93 dias, 53 semanas ou 36 meses. A despesa fixa (`companyexpense`) repete as contas pessoais:
+  `ExpenseCalendar` calcula os meses, só o pagamento é gravado em `company_expenses` (copiando nome e
+  categoria dos termos do mês), atrasada pelo dia do calendário. A avulsa é um fato (sem data futura).
+  Categorias por empresa, semeadas pelo `CompanyCreatedEvent`; "Impostos" (`system_key = TAXES`) não é
+  escolhível nem editável; arquivar encerra as fixas (`ExpenseCategoryArchivedEvent`). Comprovante:
+  PDF, JPEG ou PNG pelo `AttachmentService`.
 - **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
   `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não
