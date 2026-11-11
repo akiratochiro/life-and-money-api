@@ -759,3 +759,36 @@ services of `invoice`, `companyexpense`, `tax` and `withdrawal` (none depends on
 **Consequences.** One request per screen block, with the rules tested against Postgres instead of
 re-implemented in the front. A month's result closes with that month's revenue. The cost is recomputing
 taxes on every read, a few small queries per obligation and month.
+
+## 28. Withdrawals reach personal finances with one source of truth; profit distribution only warns
+
+**Context.** Phase 6 links a partner's withdrawal to the user's personal finances and adds profit
+distribution, whose taxation changed with Lei 15.270/2025 and is disputed for the Simples Nacional.
+
+**Decision.**
+- **Launching is explicit**: after saving, one tap launches the *net* amount as an income transaction on
+  the payment date, only for the "me" partner. The default category ("Pró-labore" or "Lucros
+  distribuídos") is created on first use, reusing an active one with the same name.
+- **The withdrawal is the source of the amount and the date.** Editing it updates the transaction
+  (`syncFromOrigin`); editing them in the personal statement is refused with 422, while category and
+  description stay free. Going back from the net pró-labore to its gross would mean inverting the
+  progressive IRRF, and two sources of truth drift apart.
+- **Deleting asks about the other side.** Deleting the withdrawal takes the transaction only with
+  `deletePersonal`; deleting the transaction releases the link (`TransactionDeletingEvent`).
+- **No package cycle**: `transaction` defines `TransactionOrigins` (where a transaction came from), which
+  `withdrawal` implements, as with goals (decision 3). Services that need an implementer that depends on
+  them take an `ObjectProvider`, avoiding a bean cycle; the same holds for `ProfitExemptionLimits`, which
+  `tax` implements for `withdrawal`.
+- **Profit distribution** has no INSS and no payroll month, takes the IRRF the user informs, and never
+  counts toward the Fator R. The MEI may distribute profit.
+- **Two warnings, never blocks.** Above R$ 50,000 in a month from the company to the same partner, the
+  10% withholding on the *total* is suggested (Lei 9.250, art. 6º-A); the Receita applies it to the
+  Simples, which is disputed in court, so the app does not withhold by itself. Beyond the estimated
+  exemption limit without bookkeeping (presumption of Lei 9.249, art. 15 — 32% services, 8% trade, 8% for
+  a mixed MEI — minus the IRPJ inside the DAS, for the year), it warns that only bookkeeping showing a
+  larger profit keeps it exempt. The rates are parameters (V21); the rules read only in secondary
+  sources are in `UnverifiedLegalSource`.
+
+**Consequences.** The personal statement never disagrees with the company. The cost is that a linked
+amount can only be changed on the company page, which the statement explains. The warnings depend on
+estimates, which they say.

@@ -84,6 +84,10 @@ account only ever sees its own data.
   recurring ones computed like personal bills (effective-dated terms, only payments stored, paid,
   pending or overdue), per-company categories seeded on creation, a system-owned "Taxes" category
   and receipts reusing the attachments store
+- **Withdrawals to personal finances**: one tap launches the net pró-labore or profit of the "me" partner as
+  personal income, kept in sync with the withdrawal (amount and date locked in the statement); profit
+  distribution with non-blocking warnings for the 10% withholding above R$ 50,000 a month (Lei 15.270/2025)
+  and the estimated exemption limit without bookkeeping
 - **Company overview**: the month's revenue, expenses, taxes by competence (paid or expected), result and
   withdrawals, without counting a paid tax twice, plus what is overdue or due in the next 30 days
 - **Company taxes**: each month's obligations (DAS, DAS-MEI, the pró-labore DARF, DEFIS, DASN-SIMEI and

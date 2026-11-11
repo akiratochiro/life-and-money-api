@@ -114,6 +114,12 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   (pago, senão previsto), despesas **sem a categoria Impostos** (o imposto pago já é despesa de Impostos),
   resultado = receita − despesas − impostos, retiradas à parte. Próximos vencimentos: atrasados de até 3
   meses e os próximos 30 dias, sem o imposto de previsto zero (DAS de mês sem receita), que fica só na aba Impostos.
+- **Ponte PJ → PF** (`withdrawal`, decisão 28): lançar a retirada do "sou eu" cria uma receita com o
+  líquido; a retirada é a fonte do valor e da data (`TransactionService.syncFromOrigin`), e o extrato recusa
+  mudá-los (`TransactionOrigins`, inversão como as metas). Excluir a retirada leva o lançamento só com
+  `deletePersonal`. Implementador que depende de quem o usa entra por `ObjectProvider` (sem ciclo de beans).
+  Distribuição de lucros: sem INSS, IRRF informado, avisos de retenção (R$ 50 mil/mês) e de limite de
+  isenção (`taxengine.ProfitDistribution`, `ProfitExemptionLimits` implementado em `tax`), nunca bloqueia.
 - **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
   `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não
