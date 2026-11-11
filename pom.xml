@@ -15,6 +15,8 @@
 	<description>API de controle financeiro pessoal: categorias, transações, orçamento com vigência, dashboards e metas de poupança.</description>
 	<properties>
 		<java.version>25</java.version>
+		<!-- Para rodar só os lembretes: ./mvnw test -Dgroups=pre-deploy -Dsurefire.excludedGroups= -->
+		<surefire.excludedGroups>pre-deploy</surefire.excludedGroups>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -124,6 +126,14 @@
 
 	<build>
 		<plugins>
+			<plugin>
+				<!-- A tag pre-deploy (lembretes de conferência legal) fica fora da suíte comum -->
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<excludedGroups>${surefire.excludedGroups}</excludedGroups>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
