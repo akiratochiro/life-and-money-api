@@ -21,6 +21,8 @@ import com.akiratochiro.life_and_money_api.company.CnpjAlreadyRegisteredExceptio
 import com.akiratochiro.life_and_money_api.company.CompanyArchivedException;
 import com.akiratochiro.life_and_money_api.company.CompanyNotFoundException;
 import com.akiratochiro.life_and_money_api.company.InvalidCompanyDataException;
+import com.akiratochiro.life_and_money_api.company.InvalidPartnerChangeException;
+import com.akiratochiro.life_and_money_api.company.PartnerNotFoundException;
 import com.akiratochiro.life_and_money_api.company.InvalidRegimeChangeException;
 import com.akiratochiro.life_and_money_api.company.NoRegimeChangeToUndoException;
 import com.akiratochiro.life_and_money_api.company.OpeningDateLockedException;
@@ -209,6 +211,11 @@ public class GlobalExceptionHandler {
         return notFound("Empresa não encontrada", ex);
     }
 
+    @ExceptionHandler(PartnerNotFoundException.class)
+    public ProblemDetail handlePartnerNotFound(PartnerNotFoundException ex) {
+        return notFound("Sócio não encontrado", ex);
+    }
+
     // 409
 
     @ExceptionHandler(EmailAlreadyInUseException.class)
@@ -307,6 +314,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidRegimeChangeException.class)
     public ProblemDetail handleInvalidRegimeChange(InvalidRegimeChangeException ex) {
         return unprocessable("Mudança de enquadramento inválida", ex);
+    }
+
+    @ExceptionHandler(InvalidPartnerChangeException.class)
+    public ProblemDetail handleInvalidPartnerChange(InvalidPartnerChangeException ex) {
+        return unprocessable("Mudança de sócios inválida", ex);
     }
 
     // 429
