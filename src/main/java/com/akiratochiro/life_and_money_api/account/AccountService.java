@@ -14,6 +14,7 @@ import com.akiratochiro.life_and_money_api.companyexpense.ExpenseCategoryExportR
 import com.akiratochiro.life_and_money_api.goal.GoalService;
 import com.akiratochiro.life_and_money_api.invoice.InvoiceService;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimit;
+import com.akiratochiro.life_and_money_api.tax.TaxService;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimiter;
 import com.akiratochiro.life_and_money_api.transaction.TransactionResponse;
 import com.akiratochiro.life_and_money_api.transaction.TransactionService;
@@ -47,6 +48,7 @@ class AccountService {
     private final CompanyExpenseCategoryService expenseCategoryService;
     private final CompanyExpenseService expenseService;
     private final WithdrawalService withdrawalService;
+    private final TaxService taxService;
     private final AccountCredentials accountCredentials;
     private final RateLimiter rateLimiter;
     private final Clock clock;
@@ -63,6 +65,7 @@ class AccountService {
                    CompanyExpenseCategoryService expenseCategoryService,
                    CompanyExpenseService expenseService,
                    WithdrawalService withdrawalService,
+                   TaxService taxService,
                    AccountCredentials accountCredentials,
                    RateLimiter rateLimiter,
                    Clock clock) {
@@ -78,6 +81,7 @@ class AccountService {
         this.expenseCategoryService = expenseCategoryService;
         this.expenseService = expenseService;
         this.withdrawalService = withdrawalService;
+        this.taxService = taxService;
         this.accountCredentials = accountCredentials;
         this.rateLimiter = rateLimiter;
         this.clock = clock;
@@ -100,7 +104,9 @@ class AccountService {
                 expenseService.listAllRecurring(userId),
                 expenseService.listAllExpenses(userId),
                 withdrawalService.listAllPlans(userId),
-                withdrawalService.listAll(userId));
+                withdrawalService.listAll(userId),
+                taxService.listAllObligations(userId),
+                taxService.listAllPayments(userId));
     }
 
     /**
@@ -119,6 +125,7 @@ class AccountService {
         rateLimiter.consume(RateLimit.ACCOUNT_DELETION_PER_USER, String.valueOf(userId));
         userService.verifyPassword(userId, password);
 
+        taxService.deleteAllOf(userId);
         withdrawalService.deleteAllOf(userId);
         expenseService.deleteAllOf(userId);
         invoiceService.deleteAllOf(userId);

@@ -32,6 +32,17 @@ interface CompanyExpenseRepository extends JpaRepository<CompanyExpense, Long> {
 
     List<CompanyExpense> findAllByUserIdOrderByCompanyIdAscExpenseDateAscIdAsc(Long userId);
 
+    /** As despesas das categorias marcadas como folha (salários, encargos, FGTS), para o Fator R. */
+    @Query("""
+            select e from CompanyExpense e, CompanyExpenseCategory c
+             where c.id = e.categoryId and c.countsAsPayroll = true
+               and e.companyId = :companyId and e.expenseDate between :from and :to
+            """)
+    List<CompanyExpense> findPayrollBetween(@Param("companyId") Long companyId, @Param("from") LocalDate from,
+                                            @Param("to") LocalDate to);
+
+    List<CompanyExpense> findAllByCompanyIdAndIdIn(Long companyId, java.util.Collection<Long> ids);
+
     @Query("select e.attachmentId from CompanyExpense e where e.userId = :userId and e.attachmentId is not null")
     List<Long> findAttachmentIdsOfUser(@Param("userId") Long userId);
 

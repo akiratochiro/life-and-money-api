@@ -10,6 +10,8 @@ import com.akiratochiro.life_and_money_api.companyexpense.RecurringExpenseRespon
 import com.akiratochiro.life_and_money_api.goal.SavingsGoalResponse;
 import com.akiratochiro.life_and_money_api.invoice.InvoiceExport;
 import com.akiratochiro.life_and_money_api.transaction.TransactionResponse;
+import com.akiratochiro.life_and_money_api.tax.ObligationResponse;
+import com.akiratochiro.life_and_money_api.tax.TaxPaymentExport;
 import com.akiratochiro.life_and_money_api.user.UserResponse;
 import com.akiratochiro.life_and_money_api.withdrawal.ProLaborePlanResponse;
 import com.akiratochiro.life_and_money_api.withdrawal.WithdrawalResponse;
@@ -47,6 +49,8 @@ public record AccountExport(
         @Schema(requiredMode = REQUIRED, description = "Pró-labores planejados, com o histórico")
         List<ProLaborePlanResponse> proLaborePlans,
         @Schema(requiredMode = REQUIRED, description = "Retiradas dos sócios (pró-labores pagos)")
-        List<WithdrawalResponse> withdrawals
+        List<WithdrawalResponse> withdrawals,
+        @Schema(requiredMode = REQUIRED, description = "Obrigações tributárias das empresas") List<ObligationResponse> taxObligations,
+        @Schema(requiredMode = REQUIRED, description = "Impostos pagos e declarações entregues") List<TaxPaymentExport> taxPayments
 ) {
 }

@@ -115,9 +115,11 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.invoices[0].invoice.number").value("42"))
                 .andExpect(jsonPath("$.expenseCategories.length()").value(7))
                 .andExpect(jsonPath("$.recurringExpenses[0].history.length()").value(1))
-                .andExpect(jsonPath("$.companyExpenses.length()").value(1))
+                .andExpect(jsonPath("$.companyExpenses.length()").value(2)) // a fixa paga e o DARF pago
                 .andExpect(jsonPath("$.proLaborePlans.length()").value(1))
                 .andExpect(jsonPath("$.withdrawals[0].inssAmount").value(330.00))
+                .andExpect(jsonPath("$.taxObligations.length()").value(5))
+                .andExpect(jsonPath("$.taxPayments.length()").value(1))
                 .andReturn();
 
         String body = result.getResponse().getContentAsString();
@@ -143,7 +145,8 @@ class AccountIntegrationTest extends IntegrationTest {
                         "scheduled_bills", "scheduled_bill_terms", "bill_payments",
                         "companies", "company_regimes", "partners", "attachments", "invoices",
                         "company_expense_categories", "company_recurring_expenses",
-                        "company_recurring_expense_terms", "company_expenses", "partner_pro_labore_plans", "withdrawals");
+                        "company_recurring_expense_terms", "company_expenses", "partner_pro_labore_plans", "withdrawals",
+                        "tax_obligations", "tax_payments");
 
         Map<String, Long> rows = new LinkedHashMap<>();
         rows.put("users", jdbc.queryForObject("select count(*) from users where id = ?", Long.class, userId));
@@ -229,6 +232,12 @@ class AccountIntegrationTest extends IntegrationTest {
                                 {"partnerId": %d, "kind": "PRO_LABORE", "competenceMonth": "2026-10",
                                  "paymentDate": "2026-10-30", "grossAmount": 3000}
                                 """.formatted(partner)))
+                .andExpect(status().isCreated());
+        // O DARF desse pró-labore pago: linha em tax_payments (as obrigações nascem com a empresa).
+        Long darf = jdbc.queryForObject("select id from tax_obligations where company_id = ? and kind = 'DARF_PREVIDENCIARIO'",
+                Long.class, company);
+        mockMvc.perform(post("/companies/{id}/taxes/{oid}/occurrences/{c}/payment", company, darf, "2026-10").with(asUser(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"amount\": 330, \"date\": \"2026-10-30\"}"))
                 .andExpect(status().isCreated());
 
         login(email).andExpect(status().isOk());

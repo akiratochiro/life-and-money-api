@@ -35,6 +35,19 @@ interface InvoiceRepository extends JpaRepository<Invoice, Long> {
     List<RevenueSeries.Entry> findActiveRevenue(@Param("companyId") Long companyId,
                                                 @Param("from") LocalDate from, @Param("to") LocalDate to);
 
+    /** A receita das notas ativas com ISS retido pelo tomador: a parte do ISS sai do DAS dela. */
+    @Query("""
+            select new com.akiratochiro.life_and_money_api.invoice.RevenueSeries$Entry(
+                       i.competenceDate, i.serviceAmount - i.unconditionalDiscountAmount)
+              from Invoice i
+             where i.companyId = :companyId
+               and i.status = com.akiratochiro.life_and_money_api.invoice.InvoiceStatus.ATIVA
+               and i.issWithheldAmount > 0
+               and i.competenceDate between :from and :to
+            """)
+    List<RevenueSeries.Entry> findActiveRevenueWithIssWithheld(@Param("companyId") Long companyId,
+                                                               @Param("from") LocalDate from, @Param("to") LocalDate to);
+
     @Query("select i from Invoice i where i.userId = :userId order by i.companyId, i.competenceDate, i.id")
     List<Invoice> findAllOfUser(@Param("userId") Long userId);
 

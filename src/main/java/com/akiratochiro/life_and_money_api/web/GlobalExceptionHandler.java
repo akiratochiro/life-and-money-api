@@ -39,6 +39,8 @@ import com.akiratochiro.life_and_money_api.invoice.InvoiceNotFoundException;
 import com.akiratochiro.life_and_money_api.invoice.InvoiceParseException;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimitExceededException;
 import com.akiratochiro.life_and_money_api.shared.GoalNotFoundException;
+import com.akiratochiro.life_and_money_api.tax.InvalidTaxOperationException;
+import com.akiratochiro.life_and_money_api.tax.TaxNotFoundException;
 import com.akiratochiro.life_and_money_api.transaction.GoalRequiresSavingCategoryException;
 import com.akiratochiro.life_and_money_api.transaction.TransactionNotFoundException;
 import com.akiratochiro.life_and_money_api.user.EmailAlreadyInUseException;
@@ -248,6 +250,11 @@ public class GlobalExceptionHandler {
         return notFound("Retirada não encontrada", ex);
     }
 
+    @ExceptionHandler(TaxNotFoundException.class)
+    public ProblemDetail handleTaxNotFound(TaxNotFoundException ex) {
+        return notFound("Não encontrado", ex);
+    }
+
     @ExceptionHandler(InvoiceNotFoundException.class)
     public ProblemDetail handleInvoiceNotFound(InvoiceNotFoundException ex) {
         return notFound("Nota fiscal não encontrada", ex);
@@ -333,6 +340,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(InvalidWithdrawalException.class)
     public ProblemDetail handleInvalidWithdrawal(InvalidWithdrawalException ex) {
         return ex.isConflict() ? conflict("Retirada repetida", ex) : unprocessable("Retirada inválida", ex);
+    }
+
+    @ExceptionHandler(InvalidTaxOperationException.class)
+    public ProblemDetail handleInvalidTaxOperation(InvalidTaxOperationException ex) {
+        return ex.isConflict() ? conflict("Imposto já registrado", ex) : unprocessable("Operação de imposto inválida", ex);
     }
 
     @ExceptionHandler(DuplicateInvoiceException.class)

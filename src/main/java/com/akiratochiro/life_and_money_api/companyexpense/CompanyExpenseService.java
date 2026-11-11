@@ -41,6 +41,7 @@ public class CompanyExpenseService {
     private final CompanyExpenseCategoryService categoryService;
     private final CompanyService companyService;
     private final AttachmentService attachmentService;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
     private final Clock clock;
 
     public CompanyExpenseService(CompanyExpenseRepository expenseRepository,
@@ -49,6 +50,7 @@ public class CompanyExpenseService {
                                  CompanyExpenseCategoryService categoryService,
                                  CompanyService companyService,
                                  AttachmentService attachmentService,
+                                 org.springframework.context.ApplicationEventPublisher eventPublisher,
                                  Clock clock) {
         this.expenseRepository = expenseRepository;
         this.recurringRepository = recurringRepository;
@@ -56,6 +58,7 @@ public class CompanyExpenseService {
         this.categoryService = categoryService;
         this.companyService = companyService;
         this.attachmentService = attachmentService;
+        this.eventPublisher = eventPublisher;
         this.clock = clock;
     }
 
@@ -90,11 +93,53 @@ public class CompanyExpenseService {
         return expense;
     }
 
-    /** Apaga a despesa e o comprovante. Se era o pagamento de uma fixa, o mês volta a pendente. */
+    /**
+     * Apaga a despesa e o comprovante. Se era o pagamento de uma fixa, o mês volta a pendente; se era
+     * um imposto pago, quem guarda o pagamento solta-o antes ({@link CompanyExpenseDeletingEvent}).
+     */
     @Transactional
     public void delete(Long userId, Long companyId, Long expenseId) {
         companyService.getActiveOwned(userId, companyId);
-        deleteWithReceipt(userId, findExpense(companyId, expenseId));
+        CompanyExpense expense = findExpense(companyId, expenseId);
+        eventPublisher.publishEvent(new CompanyExpenseDeletingEvent(userId, companyId, expenseId));
+        deleteWithReceipt(userId, expense);
+    }
+
+    // Para os impostos (Fase 4)
+
+    /**
+     * O imposto pago vira despesa na categoria Impostos, que é do sistema e não pode ser escolhida à
+     * mão. É a despesa que guarda o valor e a data pagos: editá-la corrige o pagamento.
+     */
+    @Transactional
+    public CompanyExpense createTaxExpense(Long userId, Long companyId, String name, BigDecimal amount, LocalDate date) {
+        requireNotFuture(date);
+        return expenseRepository.save(new CompanyExpense(userId, companyId, categoryService.taxes(companyId).getId(), name,
+                amount, date, null, null));
+    }
+
+    /** Desfazer o pagamento de um imposto: a despesa e o comprovante dela somem. */
+    @Transactional
+    public void deleteTaxExpense(Long userId, Long companyId, Long expenseId) {
+        expenseRepository.findByIdAndCompanyId(expenseId, companyId).ifPresent(expense -> deleteWithReceipt(userId, expense));
+    }
+
+    /** O valor e a data das despesas pedidas (os impostos pagos), numa consulta só. */
+    @Transactional(readOnly = true)
+    public Map<Long, CompanyExpense> expenses(Long companyId, java.util.Collection<Long> ids) {
+        if (ids.isEmpty()) {
+            return Map.of();
+        }
+        return expenseRepository.findAllByCompanyIdAndIdIn(companyId, ids).stream()
+                .collect(Collectors.toMap(CompanyExpense::getId, Function.identity()));
+    }
+
+    /** A folha das categorias marcadas como folha, por mês da despesa, para o Fator R. */
+    @Transactional(readOnly = true)
+    public Map<YearMonth, BigDecimal> payrollByMonth(Long companyId, YearMonth from, YearMonth to) {
+        return expenseRepository.findPayrollBetween(companyId, from.atDay(1), to.atEndOfMonth()).stream()
+                .collect(Collectors.groupingBy(e -> YearMonth.from(e.getExpenseDate()),
+                        Collectors.reducing(BigDecimal.ZERO, CompanyExpense::getAmount, BigDecimal::add)));
     }
 
     // Comprovantes
