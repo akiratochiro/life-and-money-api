@@ -84,6 +84,8 @@ account only ever sees its own data.
   recurring ones computed like personal bills (effective-dated terms, only payments stored, paid,
   pending or overdue), per-company categories seeded on creation, a system-owned "Taxes" category
   and receipts reusing the attachments store
+- **Company overview**: the month's revenue, expenses, taxes by competence (paid or expected), result and
+  withdrawals, without counting a paid tax twice, plus what is overdue or due in the next 30 days
 - **Company taxes**: each month's obligations (DAS, DAS-MEI, the pró-labore DARF, DEFIS, DASN-SIMEI and
   the user's own) computed from the regime of each competence, with the expected amount and the
   calculation behind it; paying creates a "Taxes" expense and freezes the expected value, deleting that

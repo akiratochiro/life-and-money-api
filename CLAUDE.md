@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, `companyoverview`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -110,6 +110,10 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   só o pagamento é gravado, o valor e a data pagos moram na despesa de Impostos, e o previsto do momento
   fica congelado. Apagar a despesa solta o pagamento (`CompanyExpenseDeletingEvent`). Pró-labore em
   `withdrawal`: calculado de 2026 em diante, informado antes; MEI não tem.
+- **Visão geral da empresa** (`companyoverview`, decisão 27): só lê e soma. Impostos pela **competência**
+  (pago, senão previsto), despesas **sem a categoria Impostos** (o imposto pago já é despesa de Impostos),
+  resultado = receita − despesas − impostos, retiradas à parte. Próximos vencimentos: atrasados de até 3
+  meses e os próximos 30 dias.
 - **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
   `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não

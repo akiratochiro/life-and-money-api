@@ -733,3 +733,27 @@ value and still accept payments.
 stored forecasts, and a paid tax appears in expenses and totals with no double entry. The cost is
 recomputing per request (a handful of small queries per obligation), acceptable at this scale. The
 expected values are estimates; the response says so (`notice`).
+
+## 27. The company overview reads, never stores: taxes by competence, the tax expense left out
+
+**Context.** Phase 5 shows the month of a company at a glance: revenue, expenses, taxes, result and
+withdrawals, plus what is due soon. Everything already exists in other features; the question is how
+to add it up without counting anything twice or mixing periods.
+
+**Decision.** A read-only package, `companyoverview`, like the personal `dashboard`, reads the public
+services of `invoice`, `companyexpense`, `tax` and `withdrawal` (none depends on it).
+- **Taxes count by competence**: November's DAS is the tax on November's revenue, even though it is due
+  in December (`TaxService.ofCompetence`). A paid tax counts by the amount paid, an unpaid one by the
+  expected amount; one without an expected amount counts as zero and is reported (`withoutExpected`).
+- **Expenses leave out the "Taxes" category** (`CompanyExpenseService.monthTotals`): a paid tax becomes an
+  expense there, and counting it again would count it twice. Pending recurring expenses of the month
+  enter by their expected amount, so the current month (`open`) is a forecast.
+- **Result = revenue − expenses − taxes.** Withdrawals only reduce cash and are shown apart, by payment
+  date; their INSS and IRRF are already in the taxes, through the DARF.
+- **Upcoming** is relative to today: unpaid taxes and recurring expenses overdue up to 3 due months back
+  and due within 30 days, overdue first. The 3-month window bounds the cost (each month of taxes
+  recomputes the DAS). Phase 9 generalizes this source into the fiscal calendar.
+
+**Consequences.** One request per screen block, with the rules tested against Postgres instead of
+re-implemented in the front. A month's result closes with that month's revenue. The cost is recomputing
+taxes on every read, a few small queries per obligation and month.
