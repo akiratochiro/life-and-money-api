@@ -67,27 +67,54 @@ public class TaxService {
         HolidayCalendar calendar = holidayService.calendarFor(month.getYear() - 1, month.getYear() + 1);
         List<TaxObligation> active = obligations.findAllByCompanyIdOrderByIdAsc(companyId).stream()
                 .filter(TaxObligation::isActive).toList();
-        Map<String, TaxPayment> paid = payments.findAllByObligationIdIn(active.stream().map(TaxObligation::getId).toList())
-                .stream().collect(Collectors.toMap(p -> key(p.getObligationId(), p.getCompetenceMonth()), Function.identity()));
+        Map<String, TaxPayment> paid = paidBy(active);
 
         List<Occurrence> occurrences = new ArrayList<>();
         for (TaxObligation obligation : active) {
             occurrenceDueIn(company, obligation, month, calendar).ifPresent(occurrences::add);
         }
-        Map<Long, CompanyExpense> expenses = expenseService.expenses(companyId, occurrences.stream()
-                .map(o -> paid.get(key(o.obligation().getId(), o.competence())))
-                .filter(p -> p != null && p.getExpenseId() != null)
-                .map(TaxPayment::getExpenseId).toList());
-
-        List<TaxOccurrenceResponse> items = occurrences.stream()
-                .map(o -> response(company, o, paid.get(key(o.obligation().getId(), o.competence())), expenses))
-                .sorted(Comparator.comparing(TaxOccurrenceResponse::dueDate).thenComparing(TaxOccurrenceResponse::name))
-                .toList();
+        List<TaxOccurrenceResponse> items = responses(company, occurrences, paid);
         BigDecimal pending = items.stream().filter(i -> i.payment() == null && i.expectedAmount() != null)
                 .map(TaxOccurrenceResponse::expectedAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal paidTotal = items.stream().filter(i -> i.payment() != null && i.payment().paidAmount() != null)
                 .map(i -> i.payment().paidAmount()).reduce(BigDecimal.ZERO, BigDecimal::add);
         return new TaxMonthResponse(month, pending, paidTotal, items, NOTICE);
+    }
+
+    /**
+     * As ocorrências de uma competência, vençam quando vencerem: o DAS de novembro (que vence em
+     * dezembro) e as personalizadas de novembro. É o recorte da visão geral, que fecha o resultado do
+     * mês com os impostos sobre a receita dele. As declarações anuais ficam de fora: não têm valor.
+     */
+    @Transactional(readOnly = true)
+    public List<TaxOccurrenceResponse> ofCompetence(Long userId, Long companyId, YearMonth competence) {
+        Company company = companyService.getOwned(userId, companyId);
+        List<TaxObligation> active = obligations.findAllByCompanyIdOrderByIdAsc(companyId).stream()
+                .filter(TaxObligation::isActive)
+                .filter(o -> !o.getKind().isDeclaration())
+                .toList();
+        HolidayCalendar calendar = holidayService.calendarFor(competence.getYear() - 1, competence.getYear() + 1);
+        List<Occurrence> occurrences = new ArrayList<>();
+        for (TaxObligation obligation : active) {
+            occurrenceOf(company, obligation, competence, calendar).ifPresent(occurrences::add);
+        }
+        return responses(company, occurrences, paidBy(active));
+    }
+
+    private Map<String, TaxPayment> paidBy(List<TaxObligation> active) {
+        return payments.findAllByObligationIdIn(active.stream().map(TaxObligation::getId).toList())
+                .stream().collect(Collectors.toMap(p -> key(p.getObligationId(), p.getCompetenceMonth()), Function.identity()));
+    }
+
+    private List<TaxOccurrenceResponse> responses(Company company, List<Occurrence> occurrences, Map<String, TaxPayment> paid) {
+        Map<Long, CompanyExpense> expenses = expenseService.expenses(company.getId(), occurrences.stream()
+                .map(o -> paid.get(key(o.obligation().getId(), o.competence())))
+                .filter(p -> p != null && p.getExpenseId() != null)
+                .map(TaxPayment::getExpenseId).toList());
+        return occurrences.stream()
+                .map(o -> response(company, o, paid.get(key(o.obligation().getId(), o.competence())), expenses))
+                .sorted(Comparator.comparing(TaxOccurrenceResponse::dueDate).thenComparing(TaxOccurrenceResponse::name))
+                .toList();
     }
 
     // Pagamentos

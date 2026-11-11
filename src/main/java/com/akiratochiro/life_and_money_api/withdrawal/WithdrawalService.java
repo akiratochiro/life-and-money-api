@@ -105,6 +105,16 @@ public class WithdrawalService {
                 .toList();
     }
 
+    /** O que saiu da conta em retiradas no período, pela data do pagamento. */
+    public record PaidTotal(BigDecimal total, int count) {
+    }
+
+    @Transactional(readOnly = true)
+    public PaidTotal paidBetween(Long companyId, LocalDate from, LocalDate to) {
+        List<Withdrawal> paid = withdrawals.findAllByCompanyIdAndPaymentDateBetweenOrderByPaymentDateDescIdDesc(companyId, from, to);
+        return new PaidTotal(paid.stream().map(Withdrawal::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add), paid.size());
+    }
+
     // Pró-labore planejado
 
     /** Os planejados que valem hoje, um por sócio que tem plano. */

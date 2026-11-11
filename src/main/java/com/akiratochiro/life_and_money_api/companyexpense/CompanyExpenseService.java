@@ -345,6 +345,21 @@ public class CompanyExpenseService {
         return new ExpenseMonthResponse(month, paid, pending, items);
     }
 
+    /** Os totais do mês sem a categoria Impostos: o imposto pago entra na visão geral pela competência, não aqui. */
+    public record MonthTotals(BigDecimal paid, BigDecimal pending) {
+        public BigDecimal total() {
+            return paid.add(pending);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public MonthTotals monthTotals(Long userId, Long companyId, YearMonth month) {
+        Long taxes = categoryService.taxes(companyId).getId();
+        List<ExpenseMonthResponse.Item> items = month(userId, companyId, month).items().stream()
+                .filter(item -> !item.categoryId().equals(taxes)).toList();
+        return new MonthTotals(sum(items, true), sum(items, false));
+    }
+
     // Conta
 
     @Transactional(readOnly = true)
