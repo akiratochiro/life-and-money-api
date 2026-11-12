@@ -35,6 +35,7 @@ import com.akiratochiro.life_and_money_api.goal.InvalidGoalDeadlineException;
 import com.akiratochiro.life_and_money_api.invoice.DuplicateInvoiceException;
 import com.akiratochiro.life_and_money_api.invoice.InvalidInvoiceException;
 import com.akiratochiro.life_and_money_api.invoice.InvalidRevenueRangeException;
+import com.akiratochiro.life_and_money_api.calendar.InvalidCalendarRangeException;
 import com.akiratochiro.life_and_money_api.invoice.InvoiceNotFoundException;
 import com.akiratochiro.life_and_money_api.invoice.InvoiceParseException;
 import com.akiratochiro.life_and_money_api.ratelimit.RateLimitExceededException;
@@ -151,6 +152,11 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Escolha um arquivo para enviar.");
         problem.setTitle("Arquivo ausente");
         return problem;
+    }
+
+    @ExceptionHandler(InvalidCalendarRangeException.class)
+    public ProblemDetail handleInvalidCalendarRange(InvalidCalendarRangeException ex) {
+        return problem(HttpStatus.BAD_REQUEST, "Período inválido", ex);
     }
 
     @ExceptionHandler(InvalidRevenueRangeException.class)
