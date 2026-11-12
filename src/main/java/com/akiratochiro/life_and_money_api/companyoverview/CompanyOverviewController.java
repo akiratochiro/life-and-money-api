@@ -4,6 +4,8 @@ import com.akiratochiro.life_and_money_api.shared.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import com.akiratochiro.life_and_money_api.tax.FatorRMonitor;
 import com.akiratochiro.life_and_money_api.tax.FatorRMonitorResponse;
+import com.akiratochiro.life_and_money_api.tax.RevenueLimitService;
+import com.akiratochiro.life_and_money_api.tax.RevenueLimitsResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,10 +23,12 @@ public class CompanyOverviewController {
 
     private final CompanyOverviewService service;
     private final FatorRMonitor fatorRMonitor;
+    private final RevenueLimitService revenueLimitService;
 
-    public CompanyOverviewController(CompanyOverviewService service, FatorRMonitor fatorRMonitor) {
+    public CompanyOverviewController(CompanyOverviewService service, FatorRMonitor fatorRMonitor, RevenueLimitService revenueLimitService) {
         this.service = service;
         this.fatorRMonitor = fatorRMonitor;
+        this.revenueLimitService = revenueLimitService;
     }
 
     @GetMapping("/overview")
@@ -43,6 +47,13 @@ public class CompanyOverviewController {
     @Operation(operationId = "companyFatorR", summary = "O monitor do Fator R: o da próxima competência, com o mês corrente projetado")
     public FatorRMonitorResponse fatorR(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId) {
         return fatorRMonitor.monitor(CurrentUser.id(jwt), companyId);
+    }
+
+    @GetMapping("/revenue-limits")
+    @Operation(operationId = "companyRevenueLimits", summary = "Os limites de faturamento do ano: MEI, ME → EPP, sublimite e teto do Simples")
+    public RevenueLimitsResponse revenueLimits(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId,
+                                               @RequestParam(required = false) Integer year) {
+        return revenueLimitService.limits(CurrentUser.id(jwt), companyId, year);
     }
 
     @GetMapping("/upcoming")
