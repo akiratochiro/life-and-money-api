@@ -93,7 +93,7 @@ public class BillService {
     static final int UPCOMING_DAYS = 7;
     static final int OVERDUE_LOOKBACK_MONTHS = 12;
 
-    private List<BillOccurrenceResponse> occurrencesBetween(Long userId, LocalDate from, LocalDate to) {
+    List<BillOccurrenceResponse> occurrencesBetween(Long userId, LocalDate from, LocalDate to) {
         List<ScheduledBill> bills = billRepository.findAllActiveBetween(
                 userId, YearMonth.from(from).atDay(1), YearMonth.from(to).atDay(1));
         if (bills.isEmpty()) {
