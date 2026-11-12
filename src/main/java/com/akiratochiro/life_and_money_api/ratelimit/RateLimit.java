@@ -50,7 +50,13 @@ public enum RateLimit {
      * Consultas de CNPJ no cadastro de empresa. Folgado para quem corrige um dígito e consulta de
      * novo; barra um formulário em loop martelando a BrasilAPI, que é gratuita e não publica limite.
      */
-    CNPJ_LOOKUP_PER_USER(10, Duration.ofMinutes(1));
+    CNPJ_LOOKUP_PER_USER(10, Duration.ofMinutes(1)),
+
+    /**
+     * Pacotes do contador (Fase 11): cada um lê até a cota de anexos e monta um PDF. Folgado para quem
+     * baixa alguns meses seguidos; barra um laço gerando pacotes sem parar.
+     */
+    ACCOUNTANT_PACKAGE_PER_USER(10, Duration.ofMinutes(1));
 
     final long capacity;
     final Duration period;

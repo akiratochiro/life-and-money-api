@@ -59,6 +59,20 @@ class RateLimitIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void theAccountantPackageIsLimitedPerUser() throws Exception {
+        // O limite vem antes de procurar a empresa: ids próprios bastam, e a empresa inexistente responde 404.
+        Long ana = 900_011L;
+        for (int attempt = 1; attempt <= 10; attempt++) {
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                            .get("/companies/{id}/accountant-package", 999_999L).param("month", "2026-10").with(asUser(ana)))
+                    .andExpect(status().isNotFound());
+        }
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .get("/companies/{id}/accountant-package", 999_999L).param("month", "2026-10").with(asUser(ana)))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
     void theLoginIsLimitedPerIpAndAnswers429WithRetryAfter() throws Exception {
         for (int attempt = 1; attempt <= 20; attempt++) {
             login(fromCloudflare("203.0.113.10"), "ninguem" + attempt + "@test.dev")
