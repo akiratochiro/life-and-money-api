@@ -37,7 +37,7 @@ final class RevenueLimitMessages {
         return switch (kind) {
             case MEI_ANNUAL -> "LC 123/2006, art. 18-A, §§1º, 2º e 7º";
             case SIMPLES_EPP -> "LC 123/2006, art. 3º, I e §7º";
-            case SIMPLES_SUBLIMIT -> "LC 123/2006, art. 19, §4º, e art. 20, §§1º e 1º-A";
+            case SIMPLES_SUBLIMIT -> "LC 123/2006, art. 19, §4º; art. 20, §§1º e 1º-A; art. 3º, §11 no ano de abertura";
             case SIMPLES_CEILING -> "LC 123/2006, art. 3º, II e §§9º, 9º-A, 10 e 12";
         };
     }
@@ -107,9 +107,9 @@ final class RevenueLimitMessages {
             case ISS_OUT_NEXT_MONTH -> "A receita de " + year + " passou mais de 20% do sublimite (" + tolerance + ") em " + beyondMonth
                     + ". A partir de " + from + ", o ISS (e o ICMS, se houver) sai do DAS e passa a ser pago à prefeitura (e ao "
                     + "estado). Procure o seu contador agora.";
-            case ISS_OUT_RETROACTIVE -> "No ano de abertura, a receita passou mais de 20% do sublimite proporcional (" + tolerance
-                    + ") em " + beyondMonth + ". O ISS (e o ICMS, se houver) sai do DAS desde a abertura, em " + from
-                    + ". Procure o seu contador agora.";
+            case ISS_OUT_RETROACTIVE -> "No ano de abertura, a receita passou do sublimite proporcional (" + Money.brl(limit.amount())
+                    + ") em " + month + ". No primeiro ano não há margem de 20% para o sublimite: o ISS (e o ICMS, se houver) "
+                    + "sai do DAS desde a abertura, em " + from + ". Procure o seu contador agora.";
             case EXCLUDED_NEXT_YEAR -> "A receita de " + year + " passou do teto do Simples (" + Money.brl(limit.amount()) + ") em "
                     + month + ", em até 20%. A empresa sai do Simples Nacional em 1º de janeiro de " + next + ", e os impostos "
                     + "passam a ser os do Lucro Presumido ou Real. Planeje a mudança com o seu contador.";

@@ -917,7 +917,9 @@ limits of 2027 and 2028 and the Simples 20% tolerance, so no migration was neede
   - ME → EPP: EPP next January, with no tax change in the Simples (shown as information, not danger);
   - sublimit: ISS out of the DAS next January within 20%, the month after beyond;
   - ceiling: out of the Simples next January within 20%, the month after beyond;
-  - in the opening year, beyond 20% is retroactive to the opening (art. 3º, §§10 to 12).
+  - in the opening year, the ceiling beyond 20% is retroactive to the opening and within 20% applies next
+    January (art. 3º, §§10 and 12); the sublimit has no 20% margin there: any excess is retroactive to the
+    opening (§11), because §12 only covers §10.
 - **Only the highest limit that needs attention becomes the alert**: past R$ 3.6 million, the R$ 360
   thousand warning no longer helps.
 - **The sentences live in `tax/RevenueLimitMessages`**, built with the year's numbers, like the profit
@@ -926,9 +928,10 @@ limits of 2027 and 2028 and the Simples 20% tolerance, so no migration was neede
   the months of activity so far; the current month is the larger of its invoices and the expected revenue.
   Past years have no projection.
 - **Checked on Planalto on 12/11/2026**: art. 3º (I, II, §§2º, 7º, 9º, 9º-A, 10, 11, 12), art. 19, §4º, and
-  art. 20, §§1º and 1º-A. Whether §12 (no retroaction within 20%) also covers the opening-year sublimit of
-  §11 was read only in part, so it is in `UnverifiedLegalSource` and the pre-deploy test fails until it is
-  checked. From 2027, the MEI limits carry the LC 238 caveat (they depend on the budget).
+  art. 20, §§1º and 1º-A. §§10 to 12 were read in full with the user, which showed that §12 covers only §10;
+  the first version wrongly gave the opening-year sublimit the 20% margin, and was corrected.
+  `UnverifiedLegalSource` is empty again. From 2027, the MEI limits carry the LC 238 caveat (they depend on
+  the budget).
 
 **Consequences.** The owner sees, before the end of the year, which limit is close and what crossing it
 means. The figures are only as complete as the invoices in the app.

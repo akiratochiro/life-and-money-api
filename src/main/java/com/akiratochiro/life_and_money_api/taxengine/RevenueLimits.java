@@ -15,10 +15,12 @@ import java.util.Map;
  *       o desenquadramento retroage a janeiro ou à abertura (§7º, III e IV).</li>
  *   <li><b>ME → EPP</b> (R$ 360 mil): passa a EPP no ano seguinte (art. 3º, I e §7º).</li>
  *   <li><b>Sublimite</b> (R$ 3,6 mi): o ISS e o ICMS saem do DAS no mês seguinte ao excesso, ou no ano
- *       seguinte se o excesso for de até 20% (art. 19, §4º; art. 20, §§1º e 1º-A).</li>
+ *       seguinte se o excesso for de até 20% (art. 19, §4º; art. 20, §§1º e 1º-A). No ano de abertura, o
+ *       sublimite é proporcional e <b>qualquer</b> excesso retroage ao início das atividades, sem a margem de
+ *       20% (art. 3º, §11; o §12 só alcança o §10).</li>
  *   <li><b>Teto</b> (R$ 4,8 mi): sai do Simples no mês seguinte, ou no ano seguinte se o excesso for de até
- *       20% (art. 3º, II, §§9º e 9º-A). No ano de abertura, os limites do Simples são proporcionais (§2º), e o
- *       excesso de mais de 20% retroage ao início das atividades (§§10 a 12).</li>
+ *       20% (art. 3º, II, §§9º e 9º-A). No ano de abertura, o teto é proporcional (§2º), e o excesso de mais
+ *       de 20% retroage ao início das atividades; até 20%, vale no ano seguinte (§§10 e 12).</li>
  * </ul>
  * Puro: recebe a receita por mês e a {@link TaxTable} do ano. As frases ficam fora, no {@code tax}.
  */
@@ -86,8 +88,9 @@ public final class RevenueLimits {
             BigDecimal sublimit = Money.cents(table.get(TaxParameter.SIMPLES_SUBLIMIT).multiply(share));
             BigDecimal ceiling = Money.cents(table.get(TaxParameter.SIMPLES_CEILING).multiply(share));
             limits.add(limit(Kind.SIMPLES_EPP, epp, null, year, activityStart, openingYear, actual, projectedFrom, projected));
-            limits.add(limit(Kind.SIMPLES_SUBLIMIT, sublimit, tolerance(sublimit, tolerance), year, activityStart, openingYear,
-                    actual, projectedFrom, projected));
+            // No ano de abertura, o sublimite não tem margem: o §12 só vale para o teto (§10), não para o §11.
+            limits.add(limit(Kind.SIMPLES_SUBLIMIT, sublimit, openingYear ? null : tolerance(sublimit, tolerance), year,
+                    activityStart, openingYear, actual, projectedFrom, projected));
             limits.add(limit(Kind.SIMPLES_CEILING, ceiling, tolerance(ceiling, tolerance), year, activityStart, openingYear,
                     actual, projectedFrom, projected));
         }
@@ -144,8 +147,13 @@ public final class RevenueLimits {
                     effectiveFrom = nextYear;
                 }
                 case SIMPLES_SUBLIMIT -> {
-                    effect = !beyond ? Effect.ISS_OUT_NEXT_YEAR : openingYear ? Effect.ISS_OUT_RETROACTIVE : Effect.ISS_OUT_NEXT_MONTH;
-                    effectiveFrom = !beyond ? nextYear : openingYear ? start : toleranceExceededIn.plusMonths(1);
+                    if (openingYear) {
+                        effect = Effect.ISS_OUT_RETROACTIVE;
+                        effectiveFrom = start;
+                    } else {
+                        effect = beyond ? Effect.ISS_OUT_NEXT_MONTH : Effect.ISS_OUT_NEXT_YEAR;
+                        effectiveFrom = beyond ? toleranceExceededIn.plusMonths(1) : nextYear;
+                    }
                 }
                 case SIMPLES_CEILING -> {
                     effect = !beyond ? Effect.EXCLUDED_NEXT_YEAR : openingYear ? Effect.EXCLUDED_RETROACTIVE : Effect.EXCLUDED_NEXT_MONTH;

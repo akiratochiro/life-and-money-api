@@ -139,8 +139,7 @@ class RevenueLimitsTest {
 
     /**
      * Simples aberto em outubro: 3 meses, limites de 90.000, 900.000 e 1,2 mi. A 600.000 por mês, o
-     * sublimite passa dos 20% (1,08 mi) em novembro e o teto (1,44 mi) em dezembro: os dois retroagem a
-     * outubro.
+     * sublimite passa em novembro e o teto passa dos 20% (1,44 mi) em dezembro: os dois retroagem a outubro.
      */
     @Test
     void theSimplesOpeningYearIsProportionalAndRetroactive() {
@@ -155,6 +154,38 @@ class RevenueLimitsTest {
         assertThat(result.limits().get(2).toleranceExceededIn()).isEqualTo(YearMonth.of(2026, 12));
         assertThat(result.limits().get(2).effect()).isEqualTo(RevenueLimits.Effect.EXCLUDED_RETROACTIVE);
         assertThat(result.limits().get(2).effectiveFrom()).isEqualTo(october);
+    }
+
+    /**
+     * Ano de abertura (outubro, sublimite de 900.000 e teto de 1,2 mi) com 300 + 300 + 350 mil = 950.000: o
+     * sublimite passou em dezembro em menos de 20% e ainda assim retroage a outubro, porque o §12 só alcança o
+     * §10 (o teto), não o §11 (o sublimite). Sem margem, o sublimite não tem valor de tolerância.
+     */
+    @Test
+    void inTheOpeningYearAnySublimitExcessIsRetroactive() {
+        YearMonth october = YearMonth.of(2026, 10);
+        var sublimit = closed(RevenueLimits.Regime.SIMPLES, october,
+                Map.of(october, d("300000"), YearMonth.of(2026, 11), d("300000"), YearMonth.of(2026, 12), d("350000")))
+                .limits().get(1);
+
+        assertThat(sublimit.toleranceAmount()).isNull();
+        assertThat(sublimit.exceededIn()).isEqualTo(YearMonth.of(2026, 12));
+        assertThat(sublimit.level()).isEqualTo(RevenueLimits.Level.EXCEEDED);
+        assertThat(sublimit.effect()).isEqualTo(RevenueLimits.Effect.ISS_OUT_RETROACTIVE);
+        assertThat(sublimit.effectiveFrom()).isEqualTo(october);
+    }
+
+    /** Ano de abertura com 400 + 400 + 500 mil = 1,3 mi: o teto (1,2 mi) passou em até 20% (1,44 mi), e o §12 manda para janeiro. */
+    @Test
+    void inTheOpeningYearTheCeilingKeepsItsTwentyPercent() {
+        YearMonth october = YearMonth.of(2026, 10);
+        var ceiling = closed(RevenueLimits.Regime.SIMPLES, october,
+                Map.of(october, d("400000"), YearMonth.of(2026, 11), d("400000"), YearMonth.of(2026, 12), d("500000")))
+                .limits().get(2);
+
+        assertThat(ceiling.level()).isEqualTo(RevenueLimits.Level.EXCEEDED);
+        assertThat(ceiling.effect()).isEqualTo(RevenueLimits.Effect.EXCLUDED_NEXT_YEAR);
+        assertThat(ceiling.effectiveFrom()).isEqualTo(YearMonth.of(2027, 1));
     }
 
     /** O teto passado em até 20% fora do ano de abertura: sai do Simples em janeiro. */
