@@ -90,6 +90,9 @@ account only ever sees its own data.
   and the estimated exemption limit without bookkeeping
 - **Company overview**: the month's revenue, expenses, taxes by competence (paid or expected), result and
   withdrawals, without counting a paid tax twice, plus what is overdue or due in the next 30 days
+- **Unified calendar**: personal bills, company taxes and declarations and company fixed expenses in one
+  month view, filtered by personal, companies or one company, with status and expected or paid amounts;
+  in-app reminders for what is overdue or due in the next 7 days
 - **Fator R monitor**: next month's Fator R with this month projected (the larger of the invoices and an
   optional, effective-dated expected revenue; the registered or planned pró-labore and payroll expenses),
   against the company's target and the legal 28%; below it, the pró-labore that fixes it and the estimated
@@ -174,6 +177,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Invoices | `POST /companies/{id}/invoices/parse` · `POST /companies/{id}/invoices` · `GET /companies/{id}/invoices?year=` · `GET /companies/{id}/invoices/years` · `GET/DELETE /companies/{id}/invoices/{invoiceId}` · `POST .../cancel` · `POST .../reactivate` · `GET .../file` · `GET /attachments/usage` |
 | Company revenue and expenses | `GET /companies/{id}/revenue?from=&to=&granularity=` · `GET/POST /companies/{id}/expense-categories` · `PATCH .../{categoryId}` · `POST .../{categoryId}/archive` · `GET /companies/{id}/expenses?month=` · `POST /companies/{id}/expenses` · `PUT/DELETE .../expenses/{expenseId}` · `PUT/GET/DELETE .../expenses/{expenseId}/receipt` · `GET/POST /companies/{id}/recurring-expenses` · `PUT/DELETE .../recurring-expenses/{recurringId}` · `POST/DELETE .../recurring-expenses/{recurringId}/occurrences/{month}/payment` |
 | Company overview | `GET /companies/{id}/overview?month=` · `GET /companies/{id}/upcoming` · `GET /companies/{id}/cash` · `GET /companies/{id}/fator-r` · `GET/PUT/DELETE /companies/{id}/expected-revenue` |
+| Calendar | `GET /calendar?from=&to=&scope=ALL\|PF\|PJ&companyId=` (up to 62 days) · `GET /calendar/reminders?scope=&companyId=` |
 | Tax parameters | `GET /tax-parameters?date=` |
 | Holidays | `GET /holidays?year=YYYY` |
 | Health | `GET /health` |
@@ -217,5 +221,8 @@ sequence of clicks. The full step by step, including which free tiers were chose
 
 - Withdrawals from savings goals
 - Weekly bills, and skipping or changing a single month of a bill
+- Email reminders for the calendar (due tomorrow, overdue) through Brevo, which already sends the account
+  emails (300 a day on the free plan, checked on 30/10/2026): a daily job the user turns on in the account
+  page, also described on the privacy page. Today the reminders live only in the app
 - Error responses documented in the OpenAPI spec, so the front-end can type `ProblemDetail`
   from the generated schema instead of declaring it by hand

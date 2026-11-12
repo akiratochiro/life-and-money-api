@@ -871,3 +871,29 @@ month's Annex.
 **Consequences.** The user sees early, while it can still be fixed, that next month goes to Annex V, and
 whether fixing it pays. The projection is only as good as the expected revenue and the planned pró-labore,
 and next month's revenue is assumed equal to this month's.
+
+## 31. One calendar that knows no feature: sources implement it, and it only links
+
+**Context.** Phase 9 asks for one calendar with a personal/company filter, the company obligations with
+their status and amounts, a generic event source so that later features enter without refactoring, and
+in-app reminders for the next 7 days and what is overdue. Personal bills already exist (Phase 0, decision
+5), so they enter now.
+
+**Decision.**
+- **The `calendar` package defines `CalendarEventSource` and imports no other feature** (a test reads the
+  imports, like the tax engine's). `tax` (taxes and declarations), `companyexpense` (fixed expenses, as in
+  the upcoming card) and `bill` (personal bills to pay and to receive) implement it; Spring injects the list.
+  It is the inversion already used between `transaction` and `goal` (decision 3).
+- **Each source converts what its feature already computes** into a `CalendarEvent`: due date, the last
+  day without delay (the DARF anticipates, the bill postpones), status, expected and paid amounts. The
+  calendar recalculates nothing. A zero DAS is shown as nothing to pay and never becomes a reminder.
+- **The calendar only shows and links** to the screen where each thing is paid; a pay button here would
+  duplicate three different payment flows.
+- **Ranges up to 62 days**: every month of taxes recomputes each company's DAS (decision 27).
+- **Reminders** are the overdue since each source's limit (3 months for companies, for the same cost reason;
+  12 for personal bills, as on the home page) plus what is due in the next 7 days, unpaid.
+- **With a company**, only company sources run, and they check ownership (404). Archived companies are left
+  out. Email reminders are on the roadmap.
+
+**Consequences.** A new feature with due dates (credit card bills, for instance) only implements the
+interface. The price is a few months of tax recomputation per request, bounded by the range limit.

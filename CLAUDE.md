@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, `companyoverview`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, `companyoverview`, `calendar`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -125,6 +125,11 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   fixas pendentes. Usa a mesma folha e janela do `ExpectedTaxCalculator`. A meta nunca fica abaixo dos 28%,
   e só os 28% decidem o Anexo. Faturamento esperado (`company/ExpectedRevenueService`, V22) tem vigência
   como o pró-labore planejado. Só no Simples com `FATOR_R` na próxima competência.
+- **Calendário** (`calendar`, decisão 31): define `CalendarEventSource` e **não importa nenhuma feature**
+  (o `CalendarIndependenceTest` acusa); `tax`, `companyexpense` e `bill` implementam. Status, prazo e
+  valores vêm prontos da feature dona. Intervalo de até 62 dias; lembretes = atrasados desde o
+  `overdueSince` de cada fonte (3 meses na empresa, 12 nas contas) + próximos 7 dias, sem pagos nem DAS
+  zero. Empresa arquivada fica fora. Feature nova com vencimento: implemente a interface, não mexa no calendário.
 - **Ponte PJ → PF** (`withdrawal`, decisão 28): lançar a retirada do "sou eu" cria uma receita com o
   líquido; a retirada é a fonte do valor e da data (`TransactionService.syncFromOrigin`), e o extrato recusa
   mudá-los (`TransactionOrigins`, inversão como as metas). Excluir a retirada leva o lançamento só com
