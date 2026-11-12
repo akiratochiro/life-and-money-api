@@ -90,6 +90,10 @@ account only ever sees its own data.
   and the estimated exemption limit without bookkeeping
 - **Company overview**: the month's revenue, expenses, taxes by competence (paid or expected), result and
   withdrawals, without counting a paid tax twice, plus what is overdue or due in the next 30 days
+- **Accountant package**: a monthly ZIP generated on demand and streamed (one attachment in memory at a
+  time): the invoice files (cancelled ones in their own folder), the expense receipts, CSVs of invoices,
+  expenses, taxes (expected vs. paid) and withdrawals in the Brazilian Excel format, and a PDF summary with
+  the overview's numbers
 - **Revenue limits**: the year's progress towards the limits of the current regime (MEI annual limit,
   proportional in the opening year, with the 20% tolerance; Simples ME → EPP, ISS sublimit and ceiling),
   warnings at 70%, 90% and when exceeded, each explaining the consequence in plain words, and when the
@@ -180,7 +184,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Companies | `POST /companies` · `GET /companies` · `GET /companies/{id}` · `PATCH /companies/{id}` · `POST /companies/{id}/archive` · `POST /companies/{id}/unarchive` · `GET /companies/{id}/regimes` · `POST /companies/{id}/regimes` · `DELETE /companies/{id}/regimes/latest` · `GET/POST /companies/{id}/partners` · `PATCH/DELETE /companies/{id}/partners/{partnerId}` · `GET /cnpj/{cnpj}` |
 | Invoices | `POST /companies/{id}/invoices/parse` · `POST /companies/{id}/invoices` · `GET /companies/{id}/invoices?year=` · `GET /companies/{id}/invoices/years` · `GET/DELETE /companies/{id}/invoices/{invoiceId}` · `POST .../cancel` · `POST .../reactivate` · `GET .../file` · `GET /attachments/usage` |
 | Company revenue and expenses | `GET /companies/{id}/revenue?from=&to=&granularity=` · `GET/POST /companies/{id}/expense-categories` · `PATCH .../{categoryId}` · `POST .../{categoryId}/archive` · `GET /companies/{id}/expenses?month=` · `POST /companies/{id}/expenses` · `PUT/DELETE .../expenses/{expenseId}` · `PUT/GET/DELETE .../expenses/{expenseId}/receipt` · `GET/POST /companies/{id}/recurring-expenses` · `PUT/DELETE .../recurring-expenses/{recurringId}` · `POST/DELETE .../recurring-expenses/{recurringId}/occurrences/{month}/payment` |
-| Company overview | `GET /companies/{id}/overview?month=` · `GET /companies/{id}/upcoming` · `GET /companies/{id}/cash` · `GET /companies/{id}/fator-r` · `GET /companies/{id}/revenue-limits?year=` · `GET/PUT/DELETE /companies/{id}/expected-revenue` |
+| Company overview | `GET /companies/{id}/overview?month=` · `GET /companies/{id}/upcoming` · `GET /companies/{id}/cash` · `GET /companies/{id}/fator-r` · `GET /companies/{id}/revenue-limits?year=` · `GET /companies/{id}/accountant-package?month=` (ZIP) · `GET/PUT/DELETE /companies/{id}/expected-revenue` |
 | Calendar | `GET /calendar?from=&to=&scope=ALL\|PF\|PJ&companyId=` (up to 62 days) · `GET /calendar/reminders?scope=&companyId=` |
 | Tax parameters | `GET /tax-parameters?date=` |
 | Holidays | `GET /holidays?year=YYYY` |
@@ -220,6 +224,11 @@ The same suite runs on GitHub Actions on every push and pull request ([ci.yml](.
 The API is described by [`render.yaml`](render.yaml), so the deploy is reproducible instead of a
 sequence of clicks. The full step by step, including which free tiers were chosen and why, is in
 [docs/deploy.md](docs/deploy.md).
+
+## Third-party licenses
+
+- [OpenPDF](https://github.com/LibrePDF/OpenPDF) 3.0.5, used unmodified to generate the accountant summary PDF,
+  under the LGPL 2.1 / MPL 2.0.
 
 ## Roadmap
 

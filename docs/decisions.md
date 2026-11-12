@@ -932,3 +932,32 @@ limits of 2027 and 2028 and the Simples 20% tolerance, so no migration was neede
 
 **Consequences.** The owner sees, before the end of the year, which limit is close and what crossing it
 means. The figures are only as complete as the invoices in the app.
+
+## 33. The accountant package: everything checked before the first byte, one attachment at a time
+
+**Context.** Phase 11 asks for a monthly ZIP on demand (invoice files, receipts, an expenses CSV, a taxes
+CSV with expected vs. paid and a PDF summary made with OpenPDF), downloaded directly and generated in streaming
+because of the Render free memory.
+
+**Decision.**
+- **OpenPDF 3.0.5** (LGPL 2.1 / MPL 2.0, free; its heavy dependencies are optional and left out), used
+  unmodified with the standard PDF fonts; credited in the README.
+- **Each item keeps its own month**, as on the overview (decision 27): invoices and taxes by competence;
+  expenses as on the Expenses tab (one-offs by date, fixed ones by their month); withdrawals by payment date.
+  Besides the specification, `notas.csv` and `retiradas.csv` (the accountant checks invoices and needs the
+  pró-labore), and cancelled invoices in `notas/canceladas/`.
+- **The summary uses the overview's numbers** for the month, so its result matches the card.
+- **CSV in the Brazilian Excel format**: `;`, decimal comma, `dd/mm/yyyy`, UTF-8 with BOM; a cell starting with
+  `= + - @` gets an apostrophe (CSV injection). **File names are sanitized** (no accents, no `../`, at most 60
+  characters, `-2` for repeats).
+- **Streaming**: `prepare` checks the rate limit, the owner and the month and builds the data and the PDF before
+  the response starts, so a failure is still a normal `ProblemDetail`. `write` streams the ZIP
+  (`StreamingResponseBody`), reading one attachment at a time through the owning services, each in its own short
+  transaction (open-in-view is off), so memory holds one file of up to 2 MB plus the small PDF. Files go first
+  and the CSVs after, because the CSVs cite the file names.
+- **`ACCOUNTANT_PACKAGE_PER_USER`**: 10 per minute, checked before the company lookup, like the CNPJ lookup.
+- **Archived companies may download**: it is a read.
+
+**Consequences.** The package is generated in seconds without filling memory, whatever the month's size. The
+cost is that an error after the first byte (the database failing mid-stream) can only cut the ZIP, which the
+browser reports as a failed download.

@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, `companyoverview`, `calendar`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, `companyoverview`, `calendar`, `accountant`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -130,6 +130,12 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   passado); ano de abertura proporcional (fração de mês conta inteira). Níveis 70%, 90%, passou (> limite) e
   passou dos 20%; só o limite mais alto que pede atenção vira `alert`. As frases ficam em
   `RevenueLimitMessages`, nunca no motor. Os parâmetros já estavam na V18 (`MEI_MONTHLY_LIMIT`, `SIMPLES_TOLERANCE`).
+- **Pacote do contador** (`accountant`, decisão 33): `prepare` confere dono, mês, limite (`ACCOUNTANT_PACKAGE_PER_USER`)
+  e monta os dados e o PDF **antes do primeiro byte**; `write` escreve o ZIP num `StreamingResponseBody`, lendo
+  **um anexo por vez** pelos serviços donos (transações curtas; `open-in-view` desligado, não ligue). Nunca carregue
+  todos os anexos numa transação só. CSV em `Csv` (`;`, vírgula decimal, BOM, proteção contra fórmula) e nomes em
+  `FileNames` (sem acento nem `../`). O PDF usa o OpenPDF (`org.openpdf.text`, fontes padrão, LGPL/MPL) com os
+  números do `CompanyOverviewService`. Testes com `asyncDispatch`.
 - **Calendário** (`calendar`, decisão 31): define `CalendarEventSource` e **não importa nenhuma feature**
   (o `CalendarIndependenceTest` acusa); `tax`, `companyexpense` e `bill` implementam. Status, prazo e
   valores vêm prontos da feature dona. Intervalo de até 62 dias; lembretes = atrasados desde o
