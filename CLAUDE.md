@@ -31,7 +31,7 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
 ## Arquitetura
 
 - **Package by feature** em `com.akiratochiro.life_and_money_api`: `auth`, `user`, `category`,
-  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, `companyoverview`, `calendar`, `accountant`, com `config`, `web` e `shared` para o que é
+  `transaction`, `budget`, `goal`, `bill`, `holiday`, `dashboard`, `account`, `company`, `attachment`, `invoice`, `companyexpense`, `taxengine`, `taxparam`, `withdrawal`, `tax`, `companyoverview`, `calendar`, `accountant`, `support`, com `config`, `web` e `shared` para o que é
   transversal. Não crie pacotes por camada (`controllers/`, `services/`...).
 - **Repositórios são package-private.** Outra feature só alcança os dados através do service
   público da feature dona. Nunca torne um repositório `public` para "facilitar".
@@ -147,6 +147,10 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   `deletePersonal`. Implementador que depende de quem o usa entra por `ObjectProvider` (sem ciclo de beans).
   Distribuição de lucros: sem INSS, IRRF informado, avisos de retenção (R$ 50 mil/mês) e de limite de
   isenção (`taxengine.ProfitDistribution`, `ProfitExemptionLimits` implementado em `tax`), nunca bloqueia.
+- **Suporte** (`support`, decisão 34): `POST /support`, só logado, envia na hora pela `EmailSender` para
+  `app.support-email` (`SUPPORT_EMAIL`, sem padrão em produção), com `replyTo` do usuário e o texto via
+  `PlainEmail.userText` (escapado). `SUPPORT_MESSAGE_PER_USER` = 3/hora. **O endereço nunca vai para o código,
+  o front ou uma resposta da API.** Falha do Brevo vira 503 em português.
 - **Corpo ilegível** (`HttpMessageNotReadableException`) responde 400 em português, com o campo em
   `errors` quando o Jackson diz qual foi.
 - **Ordem alfabética com `Collator` pt-BR** (`BillCalendar.byName()`), não

@@ -90,6 +90,9 @@ account only ever sees its own data.
   and the estimated exemption limit without bookkeeping
 - **Company overview**: the month's revenue, expenses, taxes by competence (paid or expected), result and
   withdrawals, without counting a paid tax twice, plus what is overdue or due in the next 30 days
+- **Support contact**: logged-in users write to support from the account page; the message goes by email
+  with Reply-To set to the user, and the support address lives only in an environment variable, never on
+  the site
 - **Accountant package**: a monthly ZIP generated on demand and streamed (one attachment in memory at a
   time): the invoice files (cancelled ones in their own folder), the expense receipts, CSVs of invoices,
   expenses, taxes (expected vs. paid) and withdrawals in the Brazilian Excel format, and a PDF summary with
@@ -185,6 +188,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Invoices | `POST /companies/{id}/invoices/parse` · `POST /companies/{id}/invoices` · `GET /companies/{id}/invoices?year=` · `GET /companies/{id}/invoices/years` · `GET/DELETE /companies/{id}/invoices/{invoiceId}` · `POST .../cancel` · `POST .../reactivate` · `GET .../file` · `GET /attachments/usage` |
 | Company revenue and expenses | `GET /companies/{id}/revenue?from=&to=&granularity=` · `GET/POST /companies/{id}/expense-categories` · `PATCH .../{categoryId}` · `POST .../{categoryId}/archive` · `GET /companies/{id}/expenses?month=` · `POST /companies/{id}/expenses` · `PUT/DELETE .../expenses/{expenseId}` · `PUT/GET/DELETE .../expenses/{expenseId}/receipt` · `GET/POST /companies/{id}/recurring-expenses` · `PUT/DELETE .../recurring-expenses/{recurringId}` · `POST/DELETE .../recurring-expenses/{recurringId}/occurrences/{month}/payment` |
 | Company overview | `GET /companies/{id}/overview?month=` · `GET /companies/{id}/upcoming` · `GET /companies/{id}/cash` · `GET /companies/{id}/fator-r` · `GET /companies/{id}/revenue-limits?year=` · `GET /companies/{id}/accountant-package?month=` (ZIP) · `GET/PUT/DELETE /companies/{id}/expected-revenue` |
+| Support | `POST /support` |
 | Calendar | `GET /calendar?from=&to=&scope=ALL\|PF\|PJ&companyId=` (up to 62 days) · `GET /calendar/reminders?scope=&companyId=` |
 | Tax parameters | `GET /tax-parameters?date=` |
 | Holidays | `GET /holidays?year=YYYY` |

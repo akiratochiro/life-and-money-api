@@ -964,3 +964,27 @@ because of the Render free memory.
 **Consequences.** The package is generated in seconds without filling memory, whatever the month's size. The
 cost is that an error after the first byte (the database failing mid-stream) can only cut the ZIP, which the
 browser reports as a failed download.
+
+## 34. Support by a form, with the address only in configuration
+
+**Context.** Before going live, users need a way to reach support, but the owner wants it discreet: a
+personal address written on the site would be harvested for spam, and the repositories are a public
+portfolio.
+
+**Decision.**
+- **`POST /support`, for logged-in users only**, with an optional subject and a message (10 to 3,000
+  characters). The message is sent right away through the existing `EmailSender` (Brevo) to
+  `app.support-email`, so the user knows whether it arrived.
+- **The address lives only in `SUPPORT_EMAIL`**, with no default in production (like `APP_EMAIL_PROVIDER`):
+  it never appears in the code, the front or any API response.
+- **Reply-To is the user's account email**, so answering from the inbox reaches them directly.
+  `EmailMessage` gained an optional `replyTo`; the Brevo request omits the field when it is absent.
+- **The user's text is escaped**: `PlainEmail` (moved from `auth` to `email`, now shared) gained `userText`,
+  which keeps paragraphs and line breaks and escapes everything.
+- **`SUPPORT_MESSAGE_PER_USER`**: 3 per hour, checked before anything else; each message uses one of the 300
+  daily Brevo emails. A Brevo failure becomes a 503 in Portuguese.
+- **No public channel for people who cannot sign in**: forgot-password and the confirmation resend cover
+  those cases (option A of the plan).
+
+**Consequences.** Only account holders can write, which keeps bots out, and the address stays private. The
+cost is a Brevo email per message and a deploy variable that must be set before the API starts.

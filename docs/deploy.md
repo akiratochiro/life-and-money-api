@@ -160,7 +160,8 @@ limite de tentativas: o de um endereço fixo da Cloudflare.
    serve) e confirme pelo link que o Brevo envia para ele;
 3. Em **SMTP & API → API Keys**, gere uma chave;
 4. No Render, preencha `BREVO_API_KEY` com a chave e `EMAIL_FROM` com o remetente confirmado.
-   `APP_EMAIL_PROVIDER` e `APP_FRONT_URL` já vêm do `render.yaml`;
+   `APP_EMAIL_PROVIDER` e `APP_FRONT_URL` já vêm do `render.yaml`. Preencha também `SUPPORT_EMAIL`
+   com o endereço que recebe as mensagens do formulário de suporte (sem ele, a API não sobe);
 5. Autorize as faixas de IP de saída do Render no Brevo. Depois dos primeiros dias de uso, o Brevo
    bloqueia chamadas de IPs que ele não conhece e manda um e-mail pedindo confirmação
    ([docs](https://help.brevo.com/hc/en-us/articles/5740111683858-Authorize-and-block-IP-addresses-for-API-and-SMTP-security)).
@@ -234,6 +235,7 @@ passar, o front.
 | `BREVO_API_KEY` | API | sim, com `brevo` | — |
 | `EMAIL_FROM` | API | sim, com `brevo` | — |
 | `APP_FRONT_URL` | API | sim | — (base dos links enviados por e-mail) |
+| `SUPPORT_EMAIL` | API | sim | — (para onde vão as mensagens do suporte; `suporte@localhost` no dev) |
 | `PROXY_SHARED_SECRET` | API e Worker (secret) | sim | — (o mesmo valor nos dois) |
 | `API_ORIGIN` | front, no `wrangler.jsonc` | sim | — |
 
