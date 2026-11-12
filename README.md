@@ -90,6 +90,10 @@ account only ever sees its own data.
   and the estimated exemption limit without bookkeeping
 - **Company overview**: the month's revenue, expenses, taxes by competence (paid or expected), result and
   withdrawals, without counting a paid tax twice, plus what is overdue or due in the next 30 days
+- **Company cash**: today's balance of the company account from the opening balance (invoices by issue
+  date and net of withholdings, expenses including paid taxes, withdrawals net), the taxes already owed
+  and not yet paid (this month's, the ones still due and the overdue), what is really available, and how
+  much of this month's revenue already belongs to the government
 - **Company taxes**: each month's obligations (DAS, DAS-MEI, the pró-labore DARF, DEFIS, DASN-SIMEI and
   the user's own) computed from the regime of each competence, with the expected amount and the
   calculation behind it; paying creates a "Taxes" expense and freezes the expected value, deleting that
@@ -165,6 +169,7 @@ Every path below is relative to `/api` (e.g. `POST /api/auth/login`).
 | Companies | `POST /companies` · `GET /companies` · `GET /companies/{id}` · `PATCH /companies/{id}` · `POST /companies/{id}/archive` · `POST /companies/{id}/unarchive` · `GET /companies/{id}/regimes` · `POST /companies/{id}/regimes` · `DELETE /companies/{id}/regimes/latest` · `GET/POST /companies/{id}/partners` · `PATCH/DELETE /companies/{id}/partners/{partnerId}` · `GET /cnpj/{cnpj}` |
 | Invoices | `POST /companies/{id}/invoices/parse` · `POST /companies/{id}/invoices` · `GET /companies/{id}/invoices?year=` · `GET /companies/{id}/invoices/years` · `GET/DELETE /companies/{id}/invoices/{invoiceId}` · `POST .../cancel` · `POST .../reactivate` · `GET .../file` · `GET /attachments/usage` |
 | Company revenue and expenses | `GET /companies/{id}/revenue?from=&to=&granularity=` · `GET/POST /companies/{id}/expense-categories` · `PATCH .../{categoryId}` · `POST .../{categoryId}/archive` · `GET /companies/{id}/expenses?month=` · `POST /companies/{id}/expenses` · `PUT/DELETE .../expenses/{expenseId}` · `PUT/GET/DELETE .../expenses/{expenseId}/receipt` · `GET/POST /companies/{id}/recurring-expenses` · `PUT/DELETE .../recurring-expenses/{recurringId}` · `POST/DELETE .../recurring-expenses/{recurringId}/occurrences/{month}/payment` |
+| Company overview | `GET /companies/{id}/overview?month=` · `GET /companies/{id}/upcoming` · `GET /companies/{id}/cash` |
 | Tax parameters | `GET /tax-parameters?date=` |
 | Holidays | `GET /holidays?year=YYYY` |
 | Health | `GET /health` |

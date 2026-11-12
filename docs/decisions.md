@@ -802,3 +802,37 @@ distribution, whose taxation changed with Lei 15.270/2025 and is disputed for th
 **Consequences.** The personal statement never disagrees with the company. The cost is that a linked
 amount can only be changed on the company page, which the statement explains. The warnings depend on
 estimates, which they say.
+
+## 29. The company cash: net amounts, paid taxes as expenses, and a provision for every tax already owed
+
+**Context.** Phase 7 shows how much money the company really has: the account balance from the opening
+balance the user informed, minus what already belongs to the government. The specification's formula
+("opening + revenue − paid expenses − paid taxes − withdrawals") and provision ("effective rate × this
+month's revenue + overdue taxes") would count some money twice and miss some taxes.
+
+**Decision.** A read-only endpoint, `GET /companies/{id}/cash`, in `companyoverview`, always as of today
+(apart from `overview`, which follows the month on screen).
+- **Balance** = opening balance (from the start of its day) + **net** amount (`vLiq`) of active invoices by
+  **issue date** − expenses by date, **including** the "Taxes" category − **net** withdrawals, up to today.
+  - No separate "− paid taxes": paying a tax already creates a "Taxes" expense (Phase 0).
+  - Net invoices: the taker pays the withheld taxes straight to the government; only the net reaches the
+    account. Revenue for the DAS and the revenue card stays service − discount.
+  - Net withdrawals: the partner's INSS and IRRF leave the account later, in the DARF, which is a tax
+    expense.
+  - Issue date approximates when the money arrives (Phase 0, decision 9); the response says so.
+- **Provision** = every unpaid tax with an expected amount whose competence has started, in three parts:
+  the current competence, past competences still within the deadline (October's DAS until its due date
+  in November, which the specification left out) and overdue ones. It reads the expected amounts of the
+  tax engine instead of redoing "effective rate × revenue". The window is the one of the upcoming card (due
+  up to 3 months back), so both cards agree; zero taxes are left out and those without an expected amount
+  are counted (`withoutExpected`).
+- **Available** = balance − provision; it may be negative.
+- **"Already the government's"** is the DAS (or DAS-MEI) of this month's revenue, by competence, paid or
+  expected; the pró-labore DARF is on the payroll, not on revenue, and stays only in the provision. The
+  rate is amount ÷ revenue, so the sentence adds up even with ISS withheld. Without a DAS (Lucro Presumido
+  or Real) there is no sentence.
+
+**Consequences.** No migration: everything is already stored. The cash is recomputed on every read, like
+the overview, so a new invoice changes it at once. A tax forgotten for more than 3 months leaves both the
+provision and the upcoming card (the fiscal calendar of Phase 9 shows the full history), and the balance
+is only as good as the opening balance and the issue-date approximation.

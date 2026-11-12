@@ -114,6 +114,11 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   (pago, senão previsto), despesas **sem a categoria Impostos** (o imposto pago já é despesa de Impostos),
   resultado = receita − despesas − impostos, retiradas à parte. Próximos vencimentos: atrasados de até 3
   meses e os próximos 30 dias, sem o imposto de previsto zero (DAS de mês sem receita), que fica só na aba Impostos.
+- **Caixa da empresa** (`GET /companies/{id}/cash`, decisão 29): sempre "hoje", fora do `overview`. Saldo =
+  saldo inicial (do começo do dia) + **líquido** das notas pela **emissão** − despesas **com** a categoria
+  Impostos − **líquido** das retiradas. Provisão = impostos com previsto, não pagos, de competência já
+  começada, vencendo de 3 meses atrás em diante (a janela do `upcoming`). "Já é do governo" só com o DAS
+  ou o DAS-MEI. Nunca subtraia o imposto pago e a despesa de Impostos juntos, nem o bruto da retirada.
 - **Ponte PJ → PF** (`withdrawal`, decisão 28): lançar a retirada do "sou eu" cria uma receita com o
   líquido; a retirada é a fonte do valor e da data (`TransactionService.syncFromOrigin`), e o extrato recusa
   mudá-los (`TransactionOrigins`, inversão como as metas). Excluir a retirada leva o lançamento só com
