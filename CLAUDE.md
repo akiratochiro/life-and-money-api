@@ -119,6 +119,12 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   Impostos − **líquido** das retiradas. Provisão = impostos com previsto, não pagos, de competência já
   começada, vencendo de 3 meses atrás em diante (a janela do `upcoming`). "Já é do governo" só com o DAS
   ou o DAS-MEI. Nunca subtraia o imposto pago e a despesa de Impostos juntos, nem o bruto da retirada.
+- **Monitor do Fator R** (`tax/FatorRMonitor` + `taxengine/FatorRProjection`, decisão 30): olha a
+  **próxima** competência (o Fator R usa os meses anteriores), com o mês corrente projetado: receita =
+  max(notas, faturamento esperado), folha = pró-labore registrado ou planejado + despesas de folha pagas e
+  fixas pendentes. Usa a mesma folha e janela do `ExpectedTaxCalculator`. A meta nunca fica abaixo dos 28%,
+  e só os 28% decidem o Anexo. Faturamento esperado (`company/ExpectedRevenueService`, V22) tem vigência
+  como o pró-labore planejado. Só no Simples com `FATOR_R` na próxima competência.
 - **Ponte PJ → PF** (`withdrawal`, decisão 28): lançar a retirada do "sou eu" cria uma receita com o
   líquido; a retirada é a fonte do valor e da data (`TransactionService.syncFromOrigin`), e o extrato recusa
   mudá-los (`TransactionOrigins`, inversão como as metas). Excluir a retirada leva o lançamento só com

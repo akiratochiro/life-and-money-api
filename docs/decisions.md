@@ -836,3 +836,38 @@ month's revenue + overdue taxes") would count some money twice and miss some tax
 the overview, so a new invoice changes it at once. A tax forgotten for more than 3 months leaves both the
 provision and the upcoming card (the fiscal calendar of Phase 9 shows the full history), and the balance
 is only as good as the opening balance and the issue-date approximation.
+
+## 30. The Fator R monitor looks at next month, and says when raising the pró-labore does not pay
+
+**Context.** Phase 8 warns when the Fator R falls below the company's target, with the pró-labore that
+fixes it and the estimated savings, using an optional, effective-dated expected monthly revenue. The Fator R
+of a competence uses the 12 months *before* it (the RBT12 window), so nothing done this month changes this
+month's Annex.
+
+**Decision.**
+- **The monitor projects next month's competence**, with the current month estimated: revenue = the larger
+  of this month's invoices and the expected revenue; payroll = each partner's pró-labore (registered, else
+  planned) plus payroll-category expenses, paid or still pending. The window, the past payroll and revenue
+  come from the same code as the DAS (`ExpectedTaxCalculator`), so the number matches the Taxes tab when the
+  month closes.
+- **A pure function, `taxengine.FatorRProjection`**, returns the ratio, the status and the suggestion, with
+  hand-made examples in unit tests.
+  - Statuses: `OK`; `BELOW_TARGET` (still Annex III, without the chosen margin); `BELOW_THRESHOLD` (Annex
+    V); `NO_REVENUE` (nothing to fix).
+  - The target is the company's, never below the legal 28%, which alone decides the Annex (Phase 0, 1.1).
+- **The suggestion raises the "me" partner's pró-labore this month** by what the window misses
+  (target × revenue − payroll, rounded up, never below the minimum wage). It says whether to edit the
+  registered withdrawal or the plan.
+- **Savings exist only below 28%**: next month's DAS in Annex V − in Annex III, estimated on this month's
+  projected revenue, minus the extra INSS and IRRF. They may be negative, and the screen then says Annex V is
+  cheaper instead of hiding the warning. Catching up a year of low payroll in one month is often expensive.
+- **Expected revenue** (`company_expected_revenues`, V22) has validity like the planned pró-labore: changing
+  it applies from the current month, and past months keep their value. It applies to any regime (Phase 10
+  will use it too) and is part of the account export and deletion.
+- **A separate endpoint**, `GET /companies/{id}/fator-r`, like the cash: it is about the current and the
+  next month, not about the month chosen on the overview. It applies only when the next competence is in
+  the Simples with `FATOR_R`; for January 2027 it says the 2027 rules are not in the app yet.
+
+**Consequences.** The user sees early, while it can still be fixed, that next month goes to Annex V, and
+whether fixing it pays. The projection is only as good as the expected revenue and the planned pró-labore,
+and next month's revenue is assumed equal to this month's.
