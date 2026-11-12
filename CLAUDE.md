@@ -125,6 +125,11 @@ Tudo responde sob `/api` (`server.servlet.context-path`): OpenAPI em
   fixas pendentes. Usa a mesma folha e janela do `ExpectedTaxCalculator`. A meta nunca fica abaixo dos 28%,
   e só os 28% decidem o Anexo. Faturamento esperado (`company/ExpectedRevenueService`, V22) tem vigência
   como o pró-labore planejado. Só no Simples com `FATOR_R` na próxima competência.
+- **Limites de faturamento** (`taxengine/RevenueLimits` puro + `tax/RevenueLimitService`, decisão 32): receita
+  do **ano-calendário** (notas por competência), não o RBT12; enquadramento vigente hoje (o de dezembro num ano
+  passado); ano de abertura proporcional (fração de mês conta inteira). Níveis 70%, 90%, passou (> limite) e
+  passou dos 20%; só o limite mais alto que pede atenção vira `alert`. As frases ficam em
+  `RevenueLimitMessages`, nunca no motor. Os parâmetros já estavam na V18 (`MEI_MONTHLY_LIMIT`, `SIMPLES_TOLERANCE`).
 - **Calendário** (`calendar`, decisão 31): define `CalendarEventSource` e **não importa nenhuma feature**
   (o `CalendarIndependenceTest` acusa); `tax`, `companyexpense` e `bill` implementam. Status, prazo e
   valores vêm prontos da feature dona. Intervalo de até 62 dias; lembretes = atrasados desde o

@@ -897,3 +897,38 @@ in-app reminders for the next 7 days and what is overdue. Personal bills already
 
 **Consequences.** A new feature with due dates (credit card bills, for instance) only implements the
 interface. The price is a few months of tax recomputation per request, bounded by the range limit.
+
+## 32. Revenue limits: the calendar year, the most urgent limit, and the consequence in plain words
+
+**Context.** Phase 10 shows the progress towards the limits of the regime (MEI annual limit with its 20%
+tolerance and the opening-year proportion; Simples ME → EPP, ISS sublimit and ceiling), with warnings at
+70%, 90% and 100% explaining each consequence. The values were already seeded (V18), including the MEI
+limits of 2027 and 2028 and the Simples 20% tolerance, so no migration was needed.
+
+**Decision.**
+- **The calendar year's revenue** (active invoices by competence), not the RBT12: porte and limits are
+  measured by the year (LC 123, art. 3º and art. 18-A). The screen says only invoices in the app count.
+- **The regime in force today** applies to the whole year's revenue; a past year uses December's.
+- **A pure `taxengine.RevenueLimits`** returns each limit's amount (proportional in the opening year, the
+  fraction of a month counting as a whole month), the level (`WARNING` ≥ 70%, `NEAR` ≥ 90%, `EXCEEDED` above
+  the limit, `EXCEEDED_TOLERANCE` above 120%), the month it was exceeded, the month the projection crosses it,
+  and the effect with the month it takes effect:
+  - MEI: next January within 20%; retroactive to January (or to the opening) beyond;
+  - ME → EPP: EPP next January, with no tax change in the Simples (shown as information, not danger);
+  - sublimit: ISS out of the DAS next January within 20%, the month after beyond;
+  - ceiling: out of the Simples next January within 20%, the month after beyond;
+  - in the opening year, beyond 20% is retroactive to the opening (art. 3º, §§10 to 12).
+- **Only the highest limit that needs attention becomes the alert**: past R$ 3.6 million, the R$ 360
+  thousand warning no longer helps.
+- **The sentences live in `tax/RevenueLimitMessages`**, built with the year's numbers, like the profit
+  warnings (decision 28); the engine stays numeric.
+- **"At the current pace"**: the rest of the year at the expected revenue (Phase 8), or at the average of
+  the months of activity so far; the current month is the larger of its invoices and the expected revenue.
+  Past years have no projection.
+- **Checked on Planalto on 12/11/2026**: art. 3º (I, II, §§2º, 7º, 9º, 9º-A, 10, 11, 12), art. 19, §4º, and
+  art. 20, §§1º and 1º-A. Whether §12 (no retroaction within 20%) also covers the opening-year sublimit of
+  §11 was read only in part, so it is in `UnverifiedLegalSource` and the pre-deploy test fails until it is
+  checked. From 2027, the MEI limits carry the LC 238 caveat (they depend on the budget).
+
+**Consequences.** The owner sees, before the end of the year, which limit is close and what crossing it
+means. The figures are only as complete as the invoices in the app.
