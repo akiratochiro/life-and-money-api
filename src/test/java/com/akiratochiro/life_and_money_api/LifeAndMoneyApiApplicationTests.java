@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Import;
 @SpringBootTest(properties = {
         "jwt.secret=46N3Mn7ipRBtI+LDENQDLRM2mXOGfeamGMqAcgFS9Gc=",
         "app.email.provider=log",
+        "app.support-email=suporte@test.dev",
         "app.front-url=http://localhost:5173",
         "app.client-ip.proxy-secret=segredo-dos-testes",
         // Os outros testes fazem dezenas de logins e cadastros do mesmo IP; os limites têm

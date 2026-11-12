@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.email;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -31,7 +32,8 @@ class BrevoEmailSender implements EmailSender {
             restClient.post()
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(new Request(sender, List.of(new Recipient(message.to())),
-                            message.subject(), message.html(), message.text()))
+                            message.subject(), message.html(), message.text(),
+                            message.replyTo() == null ? null : new Recipient(message.replyTo())))
                     .retrieve()
                     .toBodilessEntity();
         } catch (RestClientException e) {
@@ -45,6 +47,8 @@ class BrevoEmailSender implements EmailSender {
     record Recipient(String email) {
     }
 
-    record Request(Sender sender, List<Recipient> to, String subject, String htmlContent, String textContent) {
+    /** Sem Reply-To, o campo nem vai no JSON: o Brevo recusa um {@code replyTo} nulo. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    record Request(Sender sender, List<Recipient> to, String subject, String htmlContent, String textContent, Recipient replyTo) {
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.web.client.RestClient;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
@@ -42,6 +43,22 @@ class BrevoEmailSenderTest {
                 .andRespond(withSuccess("{\"messageId\": \"<1@relay>\"}", MediaType.APPLICATION_JSON));
 
         sender.send(message);
+
+        brevo.verify();
+    }
+
+    /** Sem Reply-To, o campo não vai (o Brevo recusa nulo); com ele, a resposta vai para quem escreveu. */
+    @Test
+    void theReplyToIsSentOnlyWhenThereIsOne() {
+        brevo.expect(requestTo(BrevoEmailSender.ENDPOINT))
+                .andExpect(jsonPath("$.replyTo").doesNotExist())
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+        brevo.expect(requestTo(BrevoEmailSender.ENDPOINT))
+                .andExpect(jsonPath("$.replyTo.email").value("bia@exemplo.dev"))
+                .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+        sender.send(message);
+        sender.send(new EmailMessage("suporte@exemplo.dev", "Assunto", "<p>Oi</p>", "Oi", "bia@exemplo.dev"));
 
         brevo.verify();
     }

@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.auth;
 
+import com.akiratochiro.life_and_money_api.email.PlainEmail;
 import com.akiratochiro.life_and_money_api.email.EmailMessage;
 
 /** O e-mail com o link para criar uma senha nova. */

@@ -59,6 +59,20 @@ class RateLimitIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void supportMessagesAreLimitedPerUser() throws Exception {
+        // O limite vem antes de ler o usuário: um id próprio basta, e o corpo inválido não chega a gastar e-mail.
+        Long ana = 900_021L;
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/support").with(asUser(ana))
+                            .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"message\": \"uma mensagem de teste\"}"))
+                    .andExpect(result -> assertThat(result.getResponse().getStatus()).isNotEqualTo(429));
+        }
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/support").with(asUser(ana))
+                        .contentType(org.springframework.http.MediaType.APPLICATION_JSON).content("{\"message\": \"uma mensagem de teste\"}"))
+                .andExpect(status().isTooManyRequests());
+    }
+
+    @Test
     void theAccountantPackageIsLimitedPerUser() throws Exception {
         // O limite vem antes de procurar a empresa: ids próprios bastam, e a empresa inexistente responde 404.
         Long ana = 900_011L;

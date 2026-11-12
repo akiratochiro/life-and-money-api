@@ -1,5 +1,6 @@
 package com.akiratochiro.life_and_money_api.auth;
 
+import com.akiratochiro.life_and_money_api.email.PlainEmail;
 import com.akiratochiro.life_and_money_api.email.EmailMessage;
 
 /** Os dois e-mails de um pedido de cadastro. */

@@ -36,6 +36,9 @@ services:
       # secret no Worker. Gere com: openssl rand -base64 32
       - key: PROXY_SHARED_SECRET
         sync: false
+      # Para onde vão as mensagens do formulário de suporte. Fica só aqui, nunca no código.
+      - key: SUPPORT_EMAIL
+        sync: false
       # URL do front, sem barra no final: é a base dos links enviados por e-mail.
       - key: APP_FRONT_URL
         value: https://life-and-money.akira-tochiro23.workers.dev

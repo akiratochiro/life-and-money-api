@@ -56,7 +56,13 @@ public enum RateLimit {
      * Pacotes do contador (Fase 11): cada um lê até a cota de anexos e monta um PDF. Folgado para quem
      * baixa alguns meses seguidos; barra um laço gerando pacotes sem parar.
      */
-    ACCOUNTANT_PACKAGE_PER_USER(10, Duration.ofMinutes(1));
+    ACCOUNTANT_PACKAGE_PER_USER(10, Duration.ofMinutes(1)),
+
+    /**
+     * Mensagens ao suporte: cada uma é um e-mail da cota do Brevo (300 por dia). Três por hora bastam para
+     * quem complementa a primeira; barram um formulário em laço.
+     */
+    SUPPORT_MESSAGE_PER_USER(3, Duration.ofHours(1));
 
     final long capacity;
     final Duration period;

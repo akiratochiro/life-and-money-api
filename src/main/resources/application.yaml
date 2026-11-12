@@ -50,6 +50,9 @@ app:
     # Segredo que o Worker do front manda em X-Proxy-Auth para o X-Client-IP ser aceito. Sem
     # padrão: sem ele, todo usuário que passa pelo Worker dividiria o mesmo limite de tentativas.
     proxy-secret: ${PROXY_SHARED_SECRET}
+  # Para onde vão as mensagens do formulário de suporte. Sem padrão, como o provider: fica só na
+  # variável de ambiente, nunca no site nem no repositório.
+  support-email: ${SUPPORT_EMAIL}
   # Endereço do front, para montar links que vão por e-mail (redefinição de senha).
   front-url: ${APP_FRONT_URL}
   email:
