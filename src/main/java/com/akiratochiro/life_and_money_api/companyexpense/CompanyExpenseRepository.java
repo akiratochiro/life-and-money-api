@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,13 @@ interface CompanyExpenseRepository extends JpaRepository<CompanyExpense, Long> {
     Optional<CompanyExpense> findByIdAndCompanyId(Long id, Long companyId);
 
     Optional<CompanyExpense> findByRecurringExpenseIdAndOccurrenceMonth(Long recurringExpenseId, LocalDate month);
+
+    /** Tudo o que saiu da conta no intervalo, pela data: avulsas, fixas pagas e impostos pagos. */
+    @Query("""
+            select coalesce(sum(e.amount), 0) from CompanyExpense e
+             where e.companyId = :companyId and e.expenseDate between :from and :to
+            """)
+    BigDecimal sumBetween(@Param("companyId") Long companyId, @Param("from") LocalDate from, @Param("to") LocalDate to);
 
     /** As avulsas do mês, pela data. */
     @Query("""

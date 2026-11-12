@@ -234,6 +234,16 @@ public class WithdrawalService {
         return new PaidTotal(paid.stream().map(Withdrawal::getGrossAmount).reduce(BigDecimal.ZERO, BigDecimal::add), paid.size());
     }
 
+    /**
+     * O líquido das retiradas pagas no período: o que o sócio recebeu. O INSS e o IRRF saem da conta
+     * depois, no DARF, que vira uma despesa de imposto (decisão 29).
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal netPaidBetween(Long companyId, LocalDate from, LocalDate to) {
+        return withdrawals.findAllByCompanyIdAndPaymentDateBetweenOrderByPaymentDateDescIdDesc(companyId, from, to).stream()
+                .map(Withdrawal::getNetAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     // Distribuição de lucros
 
     private WithdrawalResponse createDistribution(Long userId, Company company, Partner partner, WithdrawalRequest request) {

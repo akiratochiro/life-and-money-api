@@ -63,6 +63,12 @@ public class RevenueService {
         return result;
     }
 
+    /** O líquido das notas ativas emitidas no intervalo: o que entrou na conta, para o saldo. */
+    @Transactional(readOnly = true)
+    public BigDecimal netIssuedBetween(Long companyId, LocalDate from, LocalDate to) {
+        return repository.sumActiveNetIssuedBetween(companyId, from, to);
+    }
+
     /** A receita das notas ativas no intervalo, para as fases seguintes (impostos, visão geral). */
     @Transactional(readOnly = true)
     public List<RevenueSeries.Entry> entries(Long companyId, LocalDate from, LocalDate to) {

@@ -1,10 +1,12 @@
 package com.akiratochiro.life_and_money_api.companyoverview;
 
+import com.akiratochiro.life_and_money_api.company.Company;
 import com.akiratochiro.life_and_money_api.company.CompanyService;
 import com.akiratochiro.life_and_money_api.companyexpense.CompanyExpenseService;
 import com.akiratochiro.life_and_money_api.companyexpense.ExpenseMonthResponse;
 import com.akiratochiro.life_and_money_api.companyexpense.ExpenseStatus;
 import com.akiratochiro.life_and_money_api.invoice.RevenueService;
+import com.akiratochiro.life_and_money_api.tax.ObligationKind;
 import com.akiratochiro.life_and_money_api.tax.TaxOccurrenceResponse;
 import com.akiratochiro.life_and_money_api.tax.TaxService;
 import com.akiratochiro.life_and_money_api.withdrawal.WithdrawalService;
@@ -12,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.LocalDate;
 import java.time.YearMonth;
@@ -30,6 +33,9 @@ public class CompanyOverviewService {
     /** Quantos meses de vencimento para trás entram nos atrasados (cada mês de impostos recalcula o DAS). */
     static final int OVERDUE_MONTHS = 3;
     static final int UPCOMING_DAYS = 30;
+    static final String CASH_NOTICE = "As notas entram no saldo pela data de emissão. Se o cliente paga depois, o saldo real pode estar menor.";
+    /** Até quantos meses à frente um imposto de competência já começada pode vencer (o DAS de novembro vence em dezembro). */
+    static final int MONTHS_AHEAD = 2;
 
     private final CompanyService companyService;
     private final RevenueService revenueService;
@@ -81,6 +87,82 @@ public class CompanyOverviewService {
                 revenue.subtract(expenses.total()).subtract(taxes),
                 new CompanyOverviewResponse.Withdrawals(withdrawals.total(), withdrawals.count()),
                 NOTICE);
+    }
+
+    /**
+     * O caixa de hoje (decisão 29), que não depende do mês escolhido:
+     * <ul>
+     *   <li><b>saldo</b> = saldo inicial + líquido das notas emitidas − despesas pagas (com os impostos pagos)
+     *       − líquido das retiradas, do começo do dia do saldo inicial até hoje;</li>
+     *   <li><b>provisão</b> = todo imposto com previsto, ainda não pago, de competência já começada, vencendo
+     *       de 3 meses atrás em diante (a janela dos próximos vencimentos, para os dois cards concordarem);</li>
+     *   <li><b>disponível</b> = saldo − provisão.</li>
+     * </ul>
+     */
+    @Transactional(readOnly = true)
+    public CompanyCashResponse cash(Long userId, Long companyId) {
+        Company company = companyService.getOwned(userId, companyId);
+        LocalDate today = LocalDate.now(clock);
+        YearMonth current = YearMonth.from(today);
+
+        LocalDate from = company.getOpeningBalanceDate();
+        BigDecimal revenue = revenueService.netIssuedBetween(companyId, from, today);
+        BigDecimal expenses = expenseService.paidBetween(companyId, from, today);
+        BigDecimal withdrawals = withdrawalService.netPaidBetween(companyId, from, today);
+        BigDecimal balance = company.getOpeningBalance().add(revenue).subtract(expenses).subtract(withdrawals);
+
+        BigDecimal currentMonth = BigDecimal.ZERO;
+        BigDecimal dueSoon = BigDecimal.ZERO;
+        BigDecimal overdue = BigDecimal.ZERO;
+        int withoutExpected = 0;
+        for (YearMonth due = current.minusMonths(OVERDUE_MONTHS); !due.isAfter(current.plusMonths(MONTHS_AHEAD)); due = due.plusMonths(1)) {
+            for (TaxOccurrenceResponse tax : taxService.month(userId, companyId, due).items()) {
+                if (tax.declaration() || tax.payment() != null || tax.competence().isAfter(current) || nothingToPay(tax)) {
+                    continue;
+                }
+                if (tax.expectedAmount() == null) {
+                    withoutExpected++;
+                } else if (tax.competence().equals(current)) {
+                    currentMonth = currentMonth.add(tax.expectedAmount());
+                } else if (tax.status() == TaxOccurrenceResponse.Status.OVERDUE) {
+                    overdue = overdue.add(tax.expectedAmount());
+                } else {
+                    dueSoon = dueSoon.add(tax.expectedAmount());
+                }
+            }
+        }
+        BigDecimal provision = currentMonth.add(dueSoon).add(overdue);
+
+        return new CompanyCashResponse(today, company.getOpeningBalance(), from,
+                new CompanyCashResponse.Balance(balance, revenue, expenses, withdrawals),
+                new CompanyCashResponse.Provision(provision, currentMonth, dueSoon, overdue, withoutExpected),
+                balance.subtract(provision),
+                governmentShare(userId, companyId, current),
+                CASH_NOTICE);
+    }
+
+    /**
+     * "Das notas deste mês, R$ X já é do governo": só o DAS (ou o DAS-MEI), que é o imposto sobre a
+     * receita. O DARF do pró-labore é sobre a folha e fica só na provisão. Sem DAS (Lucro Presumido ou
+     * Real), não há frase.
+     */
+    private CompanyCashResponse.GovernmentShare governmentShare(Long userId, Long companyId, YearMonth month) {
+        BigDecimal revenue = revenueService.monthly(companyId, month, month)
+                .getOrDefault(month, RevenueService.MonthRevenue.ZERO).total();
+        for (TaxOccurrenceResponse tax : taxService.ofCompetence(userId, companyId, month)) {
+            if (tax.kind() != ObligationKind.DAS && tax.kind() != ObligationKind.DAS_MEI) {
+                continue;
+            }
+            BigDecimal amount = tax.payment() != null && tax.payment().paidAmount() != null
+                    ? tax.payment().paidAmount() : tax.expectedAmount();
+            if (amount == null) {
+                return null;
+            }
+            BigDecimal rate = tax.kind() == ObligationKind.DAS && revenue.signum() > 0
+                    ? amount.divide(revenue, 4, RoundingMode.HALF_UP) : null;
+            return new CompanyCashResponse.GovernmentShare(month, revenue, amount, rate, tax.kind());
+        }
+        return null;
     }
 
     /**

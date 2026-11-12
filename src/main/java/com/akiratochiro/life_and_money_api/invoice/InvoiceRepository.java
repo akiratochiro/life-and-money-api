@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -34,6 +35,20 @@ interface InvoiceRepository extends JpaRepository<Invoice, Long> {
             """)
     List<RevenueSeries.Entry> findActiveRevenue(@Param("companyId") Long companyId,
                                                 @Param("from") LocalDate from, @Param("to") LocalDate to);
+
+    /**
+     * O que as notas ativas emitidas no intervalo puseram na conta: o líquido, porque as retenções o
+     * tomador paga direto ao governo. É o caixa da Fase 7, pela data de emissão (decisão 29).
+     */
+    @Query("""
+            select coalesce(sum(i.netAmount), 0)
+              from Invoice i
+             where i.companyId = :companyId
+               and i.status = com.akiratochiro.life_and_money_api.invoice.InvoiceStatus.ATIVA
+               and i.issueDate between :from and :to
+            """)
+    BigDecimal sumActiveNetIssuedBetween(@Param("companyId") Long companyId,
+                                                   @Param("from") LocalDate from, @Param("to") LocalDate to);
 
     /** A receita das notas ativas com ISS retido pelo tomador: a parte do ISS sai do DAS dela. */
     @Query("""

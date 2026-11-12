@@ -360,6 +360,15 @@ public class CompanyExpenseService {
         return new MonthTotals(sum(items, true), sum(items, false));
     }
 
+    /**
+     * O que saiu da conta em despesas no intervalo, pela data do pagamento, **com** a categoria
+     * Impostos: para o saldo, o imposto pago saiu do caixa (decisão 29). Fixa não paga não entra.
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal paidBetween(Long companyId, LocalDate from, LocalDate to) {
+        return expenseRepository.sumBetween(companyId, from, to);
+    }
+
     // Conta
 
     @Transactional(readOnly = true)

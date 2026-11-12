@@ -29,6 +29,12 @@ public class CompanyOverviewController {
         return service.overview(CurrentUser.id(jwt), companyId, month);
     }
 
+    @GetMapping("/cash")
+    @Operation(operationId = "companyCash", summary = "O caixa de hoje: saldo da conta PJ, provisão de impostos e saldo disponível")
+    public CompanyCashResponse cash(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId) {
+        return service.cash(CurrentUser.id(jwt), companyId);
+    }
+
     @GetMapping("/upcoming")
     @Operation(operationId = "companyUpcoming", summary = "Impostos e despesas fixas atrasados (até 3 meses) e dos próximos 30 dias")
     public List<UpcomingItem> upcoming(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId) {
