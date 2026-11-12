@@ -2,6 +2,8 @@ package com.akiratochiro.life_and_money_api.companyoverview;
 
 import com.akiratochiro.life_and_money_api.shared.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
+import com.akiratochiro.life_and_money_api.tax.FatorRMonitor;
+import com.akiratochiro.life_and_money_api.tax.FatorRMonitorResponse;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,9 +20,11 @@ import java.util.List;
 public class CompanyOverviewController {
 
     private final CompanyOverviewService service;
+    private final FatorRMonitor fatorRMonitor;
 
-    public CompanyOverviewController(CompanyOverviewService service) {
+    public CompanyOverviewController(CompanyOverviewService service, FatorRMonitor fatorRMonitor) {
         this.service = service;
+        this.fatorRMonitor = fatorRMonitor;
     }
 
     @GetMapping("/overview")
@@ -33,6 +37,12 @@ public class CompanyOverviewController {
     @Operation(operationId = "companyCash", summary = "O caixa de hoje: saldo da conta PJ, provisão de impostos e saldo disponível")
     public CompanyCashResponse cash(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId) {
         return service.cash(CurrentUser.id(jwt), companyId);
+    }
+
+    @GetMapping("/fator-r")
+    @Operation(operationId = "companyFatorR", summary = "O monitor do Fator R: o da próxima competência, com o mês corrente projetado")
+    public FatorRMonitorResponse fatorR(@AuthenticationPrincipal Jwt jwt, @PathVariable Long companyId) {
+        return fatorRMonitor.monitor(CurrentUser.id(jwt), companyId);
     }
 
     @GetMapping("/upcoming")

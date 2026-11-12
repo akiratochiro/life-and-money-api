@@ -142,6 +142,23 @@ public class CompanyExpenseService {
                         Collectors.reducing(BigDecimal.ZERO, CompanyExpense::getAmount, BigDecimal::add)));
     }
 
+    /**
+     * A folha projetada do mês, para o monitor do Fator R (decisão 30): as despesas de folha pagas no
+     * mês mais as fixas de folha ainda não pagas, pelo previsto. O mês aberto é previsão, como no card
+     * de despesas (decisão 27).
+     */
+    @Transactional(readOnly = true)
+    public BigDecimal projectedPayroll(Long userId, Long companyId, YearMonth month) {
+        BigDecimal paid = payrollByMonth(companyId, month, month).getOrDefault(month, BigDecimal.ZERO);
+        java.util.Set<Long> payrollCategories = categoryService.list(userId, companyId, true).stream()
+                .filter(CompanyExpenseCategory::countsAsPayroll).map(CompanyExpenseCategory::getId)
+                .collect(Collectors.toSet());
+        BigDecimal pending = month(userId, companyId, month).items().stream()
+                .filter(item -> item.status() != ExpenseStatus.PAID && payrollCategories.contains(item.categoryId()))
+                .map(ExpenseMonthResponse.Item::amount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return paid.add(pending);
+    }
+
     // Comprovantes
 
     /** Anexa ou troca o comprovante (PDF, JPEG ou PNG, pelas regras e pela cota dos anexos). */

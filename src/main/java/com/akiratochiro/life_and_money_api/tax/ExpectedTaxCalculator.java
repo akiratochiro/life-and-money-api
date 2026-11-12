@@ -140,7 +140,7 @@ class ExpectedTaxCalculator {
         return !withdrawalService.proLabores(companyId, competence, includePlanned).isEmpty();
     }
 
-    private Map<YearMonth, BigDecimal> payroll(Long companyId, YearMonth from, YearMonth to) {
+    Map<YearMonth, BigDecimal> payroll(Long companyId, YearMonth from, YearMonth to) {
         Map<YearMonth, BigDecimal> payroll = new HashMap<>(withdrawalService.proLaborePayroll(companyId, from, to));
         expenseService.payrollByMonth(companyId, from, to).forEach((month, amount) -> payroll.merge(month, amount, BigDecimal::add));
         return payroll;
