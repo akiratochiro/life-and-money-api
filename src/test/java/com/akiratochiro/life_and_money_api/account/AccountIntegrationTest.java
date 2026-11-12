@@ -116,6 +116,7 @@ class AccountIntegrationTest extends IntegrationTest {
                 .andExpect(jsonPath("$.expenseCategories.length()").value(7))
                 .andExpect(jsonPath("$.recurringExpenses[0].history.length()").value(1))
                 .andExpect(jsonPath("$.companyExpenses.length()").value(2)) // a fixa paga e o DARF pago
+                .andExpect(jsonPath("$.companyExpectedRevenues[0].amount").value(12000.00))
                 .andExpect(jsonPath("$.proLaborePlans.length()").value(1))
                 .andExpect(jsonPath("$.withdrawals[0].inssAmount").value(330.00))
                 .andExpect(jsonPath("$.withdrawals[0].personalTransactionId").isNumber())
@@ -147,7 +148,7 @@ class AccountIntegrationTest extends IntegrationTest {
                         "companies", "company_regimes", "partners", "attachments", "invoices",
                         "company_expense_categories", "company_recurring_expenses",
                         "company_recurring_expense_terms", "company_expenses", "partner_pro_labore_plans", "withdrawals",
-                        "tax_obligations", "tax_payments");
+                        "tax_obligations", "tax_payments", "company_expected_revenues");
 
         Map<String, Long> rows = new LinkedHashMap<>();
         rows.put("users", jdbc.queryForObject("select count(*) from users where id = ?", Long.class, userId));
@@ -221,6 +222,11 @@ class AccountIntegrationTest extends IntegrationTest {
         mockMvc.perform(post("/companies/{id}/recurring-expenses/{rid}/occurrences/{m}/payment", company, recurring,
                         java.time.YearMonth.now()).with(asUser(userId)))
                 .andExpect(status().isCreated());
+
+        // O faturamento esperado (Fase 8): linha em company_expected_revenues, que aponta para a empresa.
+        mockMvc.perform(put("/companies/{id}/expected-revenue", company).with(asUser(userId))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"amount\": 12000}"))
+                .andExpect(status().isOk());
 
         // Um pró-labore planejado e um pago: linhas em partner_pro_labore_plans e withdrawals.
         Long partner = jdbc.queryForObject("select id from partners where company_id = ?", Long.class, company);

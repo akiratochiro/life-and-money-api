@@ -4,6 +4,7 @@ import com.akiratochiro.life_and_money_api.bill.BillExport;
 import com.akiratochiro.life_and_money_api.budget.BudgetItemResponse;
 import com.akiratochiro.life_and_money_api.category.CategoryResponse;
 import com.akiratochiro.life_and_money_api.company.CompanyExport;
+import com.akiratochiro.life_and_money_api.company.ExpectedRevenueResponse;
 import com.akiratochiro.life_and_money_api.companyexpense.ExpenseCategoryExportRow;
 import com.akiratochiro.life_and_money_api.companyexpense.ExpenseResponse;
 import com.akiratochiro.life_and_money_api.companyexpense.RecurringExpenseResponse;
@@ -38,6 +39,8 @@ public record AccountExport(
         List<BillExport> bills,
         @Schema(requiredMode = REQUIRED, description = "Empresas, arquivadas inclusive, com o histórico de enquadramento e os sócios")
         List<CompanyExport> companies,
+        @Schema(requiredMode = REQUIRED, description = "Faturamento esperado das empresas, com o histórico")
+        List<ExpectedRevenueResponse> companyExpectedRevenues,
         @Schema(requiredMode = REQUIRED, description = "Os dados das notas fiscais; os arquivos originais são baixados na tela")
         List<InvoiceExport> invoices,
         @Schema(requiredMode = REQUIRED, description = "Categorias de despesa das empresas, arquivadas inclusive")

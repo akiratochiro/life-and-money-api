@@ -8,6 +8,7 @@ import com.akiratochiro.life_and_money_api.budget.BudgetService;
 import com.akiratochiro.life_and_money_api.category.CategoryResponse;
 import com.akiratochiro.life_and_money_api.category.CategoryService;
 import com.akiratochiro.life_and_money_api.company.CompanyService;
+import com.akiratochiro.life_and_money_api.company.ExpectedRevenueService;
 import com.akiratochiro.life_and_money_api.companyexpense.CompanyExpenseCategoryService;
 import com.akiratochiro.life_and_money_api.companyexpense.CompanyExpenseService;
 import com.akiratochiro.life_and_money_api.companyexpense.ExpenseCategoryExportRow;
@@ -43,6 +44,7 @@ class AccountService {
     private final GoalService goalService;
     private final BillService billService;
     private final CompanyService companyService;
+    private final ExpectedRevenueService expectedRevenueService;
     private final InvoiceService invoiceService;
     private final AttachmentService attachmentService;
     private final CompanyExpenseCategoryService expenseCategoryService;
@@ -60,6 +62,7 @@ class AccountService {
                    GoalService goalService,
                    BillService billService,
                    CompanyService companyService,
+                   ExpectedRevenueService expectedRevenueService,
                    InvoiceService invoiceService,
                    AttachmentService attachmentService,
                    CompanyExpenseCategoryService expenseCategoryService,
@@ -76,6 +79,7 @@ class AccountService {
         this.goalService = goalService;
         this.billService = billService;
         this.companyService = companyService;
+        this.expectedRevenueService = expectedRevenueService;
         this.invoiceService = invoiceService;
         this.attachmentService = attachmentService;
         this.expenseCategoryService = expenseCategoryService;
@@ -99,6 +103,7 @@ class AccountService {
                 goalService.list(userId),
                 billService.listAll(userId),
                 companyService.listAll(userId),
+                expectedRevenueService.listAll(userId),
                 invoiceService.listAll(userId),
                 expenseCategoryService.listAll(userId).stream().map(ExpenseCategoryExportRow::from).toList(),
                 expenseService.listAllRecurring(userId),
@@ -131,6 +136,7 @@ class AccountService {
         invoiceService.deleteAllOf(userId);
         attachmentService.deleteAllOf(userId);
         expenseCategoryService.deleteAllOf(userId);
+        expectedRevenueService.deleteAllOf(userId);
         companyService.deleteAllOf(userId);
         billService.deleteAllOf(userId);
         transactionService.deleteAllOf(userId);
