@@ -154,6 +154,13 @@ openssl rand -base64 32
 Se só um lado tiver o segredo, nada quebra de imediato, mas todo usuário passa a dividir um único
 limite de tentativas: o de um endereço fixo da Cloudflare.
 
+O Worker usa mais um secret, `RENDER_DEPLOY_HOOK_URL`: no Render, **Settings → Deploy Hook** do
+serviço da API, copie a URL e cadastre-a no Worker do mesmo jeito
+(`npx wrangler secret put RENDER_DEPLOY_HOOK_URL`). Quem tem essa URL dispara deploys, então ela
+nunca vai para o código. É com ela que o Worker destrava o desafio anti-bot do Render (ver a
+tabela de problemas). A hora do último deploy fica no KV `WAKE_STATE`, já declarado no
+`wrangler.jsonc` do front.
+
 #### 2.1. E-mail no Brevo
 
 1. Crie uma conta gratuita em [brevo.com](https://www.brevo.com);
@@ -255,7 +262,7 @@ passar, o front.
 | O e-mail não chega e o Brevo mandou um alerta de IP novo | A faixa de saída do Render mudou ou não foi autorizada: confira a aba **Outbound** do serviço no Render e atualize **Authorized IPs** no Brevo (passo 2.1). O pedido bloqueado se perde; peça o link de novo |
 | O e-mail de redefinição não chega | Confira o spam. Depois, o log da API (falha no envio aparece como erro com o id do usuário) e o painel do Brevo (cota diária e remetente confirmado) |
 | A primeira requisição demora de 2 a 4 minutos | Instância gratuita hibernando. É o comportamento esperado |
-| O app fica preso em "Acordando o servidor…" e `curl -i https://life-and-money-api.onrender.com/api/health` devolve HTML com `cf-mitigated: challenge` | A Cloudflare do Render ligou o desafio anti-bot e nenhum pedido chega à API, nem o que a acordaria. Destrave com **Manual Deploy → Deploy latest commit** (ou **Restart**) no painel. A causa provável era uma rajada de pedidos cancelados durante o despertar, corrigida no front (decisão 37 do `life-and-money-web`) |
+| O app fica preso em "Acordando o servidor…" e `curl -i https://life-and-money-api.onrender.com/api/health` devolve HTML com `cf-mitigated: challenge` | A Cloudflare do Render ligou o desafio anti-bot e nenhum pedido chega à API, nem o que a acordaria. O Worker dispara um deploy sozinho no primeiro pedido que encontra o desafio (decisão 38 do `life-and-money-web`), e o app abre em 5 a 8 minutos. Se não abrir, confira o secret `RENDER_DEPLOY_HOOK_URL` e os logs do Worker (`npx wrangler tail`). À mão: **Manual Deploy → Deploy latest commit** no painel |
 
 ## Documentação da API em produção
 
