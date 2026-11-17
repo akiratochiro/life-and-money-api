@@ -26,8 +26,9 @@ permanente e não pede cartão, então o banco fica nele e o Render hospeda só 
 ### O detalhe que decide a expectativa
 
 A instância gratuita do Render **hiberna depois de 15 minutos sem tráfego**, e a primeira
-requisição depois disso leva cerca de um minuto para responder. Quem abrir o link num
-momento de ociosidade espera esse minuto.
+requisição depois disso leva **de 2 a 4 minutos** para responder (medido em 16/11/2026): o Render
+segura o pedido aberto enquanto a JVM sobe. Quem abrir o link num momento de ociosidade espera
+esse tempo.
 
 Duas saídas, nenhuma gratuita de graça:
 
@@ -73,8 +74,8 @@ Para o proxy, a conta fecha com folga:
 - **Requisições:** abrir a home dispara umas 5 ou 6 chamadas à API, então 100.000 por dia são
   cerca de 16 mil aberturas. O uso pessoal fica na casa das centenas;
 - **CPU:** repassar uma requisição gasta bem menos que 1 ms. Esperar a resposta do Render não
-  conta como CPU, e não há limite de duração para Workers HTTP, então o minuto de hibernação do
-  Render não derruba o proxy;
+  conta como CPU, e não há limite de duração para Workers HTTP, então os minutos do despertar do
+  Render não derrubam o proxy;
 - **Subrequests:** o limite é 50 por requisição, e o proxy faz 1.
 
 Passado o limite diário, só `/api/*` falha (com `429`) até a meia-noite UTC; o front continua
@@ -253,7 +254,8 @@ passar, o front.
 | A API não sobe, com erro sobre `app.email` | Faltou `BREVO_API_KEY` ou `EMAIL_FROM` no Render |
 | O e-mail não chega e o Brevo mandou um alerta de IP novo | A faixa de saída do Render mudou ou não foi autorizada: confira a aba **Outbound** do serviço no Render e atualize **Authorized IPs** no Brevo (passo 2.1). O pedido bloqueado se perde; peça o link de novo |
 | O e-mail de redefinição não chega | Confira o spam. Depois, o log da API (falha no envio aparece como erro com o id do usuário) e o painel do Brevo (cota diária e remetente confirmado) |
-| A primeira requisição demora um minuto | Instância gratuita hibernando. É o comportamento esperado |
+| A primeira requisição demora de 2 a 4 minutos | Instância gratuita hibernando. É o comportamento esperado |
+| O app fica preso em "Acordando o servidor…" e `curl -i https://life-and-money-api.onrender.com/api/health` devolve HTML com `cf-mitigated: challenge` | A Cloudflare do Render ligou o desafio anti-bot e nenhum pedido chega à API, nem o que a acordaria. Destrave com **Manual Deploy → Deploy latest commit** (ou **Restart**) no painel. A causa provável era uma rajada de pedidos cancelados durante o despertar, corrigida no front (decisão 37 do `life-and-money-web`) |
 
 ## Documentação da API em produção
 
